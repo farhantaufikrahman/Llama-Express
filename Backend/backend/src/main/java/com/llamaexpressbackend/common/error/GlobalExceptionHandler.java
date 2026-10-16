@@ -22,6 +22,12 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem(ex.getStatus(), ex.getCode(), ex.getMessage());
     }
 
+    @ExceptionHandler(org.springframework.orm.ObjectOptimisticLockingFailureException.class)
+    ProblemDetail handleOptimisticLock(org.springframework.orm.ObjectOptimisticLockingFailureException ex) {
+        return problem(HttpStatus.CONFLICT, "CONCURRENT_UPDATE",
+                "Data baru saja diubah oleh proses lain, silakan coba lagi");
+    }
+
     /**
      * Jaring pengaman: race condition yang lolos dari cek existsBy... tetap jadi
      * 409, bukan 500

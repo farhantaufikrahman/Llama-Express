@@ -1,0 +1,94 @@
+package com.llamaexpressbackend.order;
+
+import com.llamaexpressbackend.common.error.NotFoundException;
+import com.llamaexpressbackend.common.web.PageResponse;
+import com.llamaexpressbackend.order.dto.*;
+import com.llamaexpressbackend.user.User;
+import com.llamaexpressbackend.user.UserRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Clock;
+
+@Service
+@RequiredArgsConstructor
+public class OrderService {
+
+    private static final int MAX_PAGE_SIZE = 50;
+
+    private final DeliveryOrderRepository orderRepository;
+    private final OrderStatusHistoryRepository historyRepository;
+    private final UserRepository userRepository;
+    private final PricingService pricingService;
+    private final OrderCodeGenerator codeGenerator;
+    private final Clock clock;
+
+    @Transactional(readOnly = true)
+    public QuoteResponse quote(QuoteRequest req) {
+        return pricingService.quote(req.serviceType(), req.vehicleType(), req.pickup(), req.dropoff(), req.weightKg());
+    }
+
+    @Transactional
+    public OrderResponse create(Long customerId, CreateOrderRequest req) {
+        // Harga dihitung ULANG di server — jangan pernah percaya harga dari client
+        QuoteResponse quote = pricingService.quote(req.serviceType(), req.vehicleType(),
+                req.pickup(), req.dropoff(), req.weightKg());
+
+        User customer = userRepository.getReferenceById(customerId); // proxy, tanpa SELECT
+        DeliveryOrder order = DeliveryOrder.place(customer, req, quote,
+                codeGenerator.orderCode(), codeGenerator.trackingToken(), codeGenerator.verificationCode());
+        orderRepository.save(order);
+        recordHistory(order, null, customerId, "Order dibuat");
+
+        if (order.getPaymentMethod() == PaymentMethod.CASH) {
+            OrderStatus from = order.getStatus();
+            order.startSearchingCourier();
+            recordHistory(order, from, customerId, null);
+        }
+        return toResponse(order);
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<OrderSummaryResponse> list(Long customerId, OrderStatus status, int page, int size) {
+        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.clamp(size, 1, MAX_PAGE_SIZE),
+                Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<DeliveryOrder> result = (status == null)
+                ? orderRepository.findByCustomer_Id(customerId, pageable)
+                : orderRepository.findByCustomer_IdAndStatus(customerId, status, pageable);
+        return PageResponse.from(result.map(OrderSummaryResponse::from));
+    }
+
+    @Transactional(readOnly = true)
+    public OrderResponse detail(Long customerId, String code) {
+        return toResponse(findOwned(customerId, code));
+    }
+
+    @Transactional
+    public OrderResponse cancel(Long customerId, String code, String reason) {
+        DeliveryOrder order = findOwned(customerId, code);
+        OrderStatus from = order.getStatus();
+        order.cancelByCustomer(reason, clock.instant());
+        recordHistory(order, from, customerId, reason);
+        return toResponse(order);
+    }
+
+    // ---------- helpers ----------
+
+    private DeliveryOrder findOwned(Long customerId, String code) {
+        return orderRepository.findByOrderCodeAndCustomer_Id(code, customerId)
+                .orElseThrow(() -> new NotFoundException("ORDER_NOT_FOUND", "Order tidak ditemukan"));
+    }
+
+    private void recordHistory(DeliveryOrder order, OrderStatus from, Long actorId, String note) {
+        historyRepository.save(OrderStatusHistory.record(order, from, actorId, note, clock.instant()));
+    }
+
+    private OrderResponse toResponse(DeliveryOrder order) {
+        return OrderResponse.from(order, historyRepository.findByOrder_IdOrderByIdAsc(order.getId()));
+    }
+}
