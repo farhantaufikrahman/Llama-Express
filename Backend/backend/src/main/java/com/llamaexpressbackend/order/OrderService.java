@@ -2,6 +2,7 @@ package com.llamaexpressbackend.order;
 
 import com.llamaexpressbackend.common.error.NotFoundException;
 import com.llamaexpressbackend.common.web.PageResponse;
+import com.llamaexpressbackend.courier.CourierLocationStore;
 import com.llamaexpressbackend.order.dto.*;
 import com.llamaexpressbackend.user.User;
 import com.llamaexpressbackend.user.UserRepository;
@@ -13,11 +14,6 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.llamaexpressbackend.common.outbox.OutboxService;
-import com.llamaexpressbackend.order.event.OrderCreatedEvent;
-import com.llamaexpressbackend.order.event.OrderStatusChangedEvent;
-import java.time.Instant;
-
 import java.time.Clock;
 
 @Service
@@ -25,13 +21,14 @@ import java.time.Clock;
 public class OrderService {
 
     private static final int MAX_PAGE_SIZE = 50;
-    private static final String AGGREGATE = "Order";
-    private final OutboxService outboxService;
+
     private final DeliveryOrderRepository orderRepository;
     private final OrderStatusHistoryRepository historyRepository;
     private final UserRepository userRepository;
     private final PricingService pricingService;
     private final OrderCodeGenerator codeGenerator;
+    private final OrderTransitionRecorder transitions;
+    private final CourierLocationStore locationStore;
     private final Clock clock;
 
     @Transactional(readOnly = true)
@@ -49,39 +46,16 @@ public class OrderService {
                 codeGenerator.orderCode(), codeGenerator.trackingToken(), codeGenerator.verificationCode());
         orderRepository.save(order);
 
-        recordTransition(order, null, customerId, "Order dibuat");
-        outboxService.record(AGGREGATE, order.getOrderCode(), OrderCreatedEvent.TYPE,
-                OrderCreatedEvent.from(order, clock.instant()));
+        transitions.record(order, null, customerId, "Order dibuat");
+        transitions.recordCreated(order);
 
         if (order.getPaymentMethod() == PaymentMethod.CASH) {
             OrderStatus from = order.getStatus();
             order.startSearchingCourier();
-            recordTransition(order, from, customerId, null);
+            transitions.record(order, from, customerId, null);
         }
         return toResponse(order);
     }
-    // @Transactional
-    // public OrderResponse create(Long customerId, CreateOrderRequest req) {
-    // // Harga dihitung ULANG di server — jangan pernah percaya harga dari client
-    // QuoteResponse quote = pricingService.quote(req.serviceType(),
-    // req.vehicleType(),
-    // req.pickup(), req.dropoff(), req.weightKg());
-
-    // User customer = userRepository.getReferenceById(customerId); // proxy, tanpa
-    // SELECT
-    // DeliveryOrder order = DeliveryOrder.place(customer, req, quote,
-    // codeGenerator.orderCode(), codeGenerator.trackingToken(),
-    // codeGenerator.verificationCode());
-    // orderRepository.save(order);
-    // recordHistory(order, null, customerId, "Order dibuat");
-
-    // if (order.getPaymentMethod() == PaymentMethod.CASH) {
-    // OrderStatus from = order.getStatus();
-    // order.startSearchingCourier();
-    // recordHistory(order, from, customerId, null);
-    // }
-    // return toResponse(order);
-    // }
 
     @Transactional(readOnly = true)
     public PageResponse<OrderSummaryResponse> list(Long customerId, OrderStatus status, int page, int size) {
@@ -102,32 +76,21 @@ public class OrderService {
     public OrderResponse cancel(Long customerId, String code, String reason) {
         DeliveryOrder order = findOwned(customerId, code);
         OrderStatus from = order.getStatus();
+        Long assignedCourierId = (order.getCourier() != null) ? order.getCourier().getId() : null;
+
         order.cancelByCustomer(reason, clock.instant());
-        recordTransition(order, from, customerId, reason);
-        // recordHistory(order, from, customerId, reason);
+        transitions.record(order, from, customerId, reason);
+
+        if (assignedCourierId != null) {
+            locationStore.markAvailable(assignedCourierId); // kurir bebas lagi menerima order lain
+        }
         return toResponse(order);
     }
-
-    // ---------- helpers ----------
 
     private DeliveryOrder findOwned(Long customerId, String code) {
         return orderRepository.findByOrderCodeAndCustomer_Id(code, customerId)
                 .orElseThrow(() -> new NotFoundException("ORDER_NOT_FOUND", "Order tidak ditemukan"));
     }
-
-    private void recordTransition(DeliveryOrder order, OrderStatus from, Long actorId, String note) {
-        Instant now = clock.instant();
-        historyRepository.save(OrderStatusHistory.record(order, from, actorId, note, now));
-        if (from != null) {
-            outboxService.record(AGGREGATE, order.getOrderCode(), OrderStatusChangedEvent.TYPE,
-                    new OrderStatusChangedEvent(order.getOrderCode(), from, order.getStatus(), actorId, note, now));
-        }
-    }
-    // private void recordHistory(DeliveryOrder order, OrderStatus from, Long
-    // actorId, String note) {
-    // historyRepository.save(OrderStatusHistory.record(order, from, actorId, note,
-    // clock.instant()));
-    // }
 
     private OrderResponse toResponse(DeliveryOrder order) {
         return OrderResponse.from(order, historyRepository.findByOrder_IdOrderByIdAsc(order.getId()));

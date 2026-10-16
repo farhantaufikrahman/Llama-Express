@@ -6,6 +6,14 @@ app:
   outbox:
     enabled: true
     poll-interval-ms: 1000
+  
+  dispatch:
+    enabled: true
+    radius-km: 5
+    candidates-per-round: 3
+    offer-ttl-seconds: 30
+    max-attempts: 10
+    sweep-interval-ms: 5000
   security:
     jwt:
       secret: ${JWT_SECRET}

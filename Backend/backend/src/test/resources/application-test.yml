@@ -4,6 +4,10 @@ app:
     password: admin12345
   outbox:
     poll-interval-ms: 200
+
+  dispatch:
+    sweep-interval-ms: 500
+    max-attempts: 3
   security:
     jwt:
       # secret KHUSUS test (bukan rahasia, aman di-commit) — base64 dari 45 byte
