@@ -1,4 +1,8 @@
 app:
+  admin:
+    email: ${ADMIN_EMAIL:}
+    password: ${ADMIN_PASSWORD:}
+    phone: ${ADMIN_PHONE:080000000000}
   outbox:
     enabled: true
     poll-interval-ms: 1000

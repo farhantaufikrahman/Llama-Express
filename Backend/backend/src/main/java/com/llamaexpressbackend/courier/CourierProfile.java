@@ -1,5 +1,6 @@
 package com.llamaexpressbackend.courier;
 
+import com.llamaexpressbackend.common.error.ForbiddenException;
 import com.llamaexpressbackend.common.persistance.BaseEntity;
 import com.llamaexpressbackend.user.User;
 import jakarta.persistence.*;
@@ -71,7 +72,7 @@ public class CourierProfile extends BaseEntity {
 
     public void goOnline() {
         if (verificationStatus != VerificationStatus.VERIFIED) {
-            throw new IllegalStateException("Kurir belum terverifikasi");
+            throw new ForbiddenException("COURIER_NOT_VERIFIED", "Akun kurir belum diverifikasi admin");
         }
         this.online = true;
     }

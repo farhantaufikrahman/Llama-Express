@@ -58,4 +58,40 @@ public abstract class AbstractIntegrationTest {
     protected static <T> T read(MvcResult result, String path) throws Exception {
         return JsonPath.read(result.getResponse().getContentAsString(), path);
     }
+
+    protected static final String ADMIN_EMAIL = "admin@test.local";
+    protected static final String ADMIN_PASSWORD = "admin12345";
+
+    protected String login(String email, String password) throws Exception {
+        MvcResult r = mockMvc.perform(post("/api/v1/auth/login").contentType(APPLICATION_JSON)
+                .content("""
+                        {"email":"%s","password":"%s"}
+                        """.formatted(email, password)))
+                .andExpect(status().isOk())
+                .andReturn();
+        return read(r, "$.accessToken");
+    }
+
+    protected String loginAdmin() throws Exception {
+        return login(ADMIN_EMAIL, ADMIN_PASSWORD);
+    }
+
+    /** Daftarkan kurir baru (belum diverifikasi) dan kembalikan access token-nya */
+    protected String registerCourier(String vehicleType) throws Exception {
+        String body = """
+                {"fullName":"Test Courier","email":"courier-%s@test.com","phone":"%s","password":"rahasia123",
+                 "vehicleType":"%s","plateNumber":"%s"}
+                """.formatted(UUID.randomUUID(), randomPhone(), vehicleType, randomPlate());
+        MvcResult r = mockMvc.perform(post("/api/v1/auth/register/courier").contentType(APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated())
+                .andReturn();
+        return read(r, "$.accessToken");
+    }
+
+    protected static String randomPlate() {
+        var rnd = ThreadLocalRandom.current();
+        return "D" + rnd.nextInt(1000, 10000)
+                + (char) ('A' + rnd.nextInt(26)) + (char) ('A' + rnd.nextInt(26)) + (char) ('A' + rnd.nextInt(26));
+    }
+
 }
