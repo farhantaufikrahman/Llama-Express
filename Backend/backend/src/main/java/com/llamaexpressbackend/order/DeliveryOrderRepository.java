@@ -23,4 +23,8 @@ public interface DeliveryOrderRepository extends JpaRepository<DeliveryOrder, Lo
 
     @Query("select o.orderCode from DeliveryOrder o where o.status = :status")
     List<String> findCodesByStatus(@Param("status") OrderStatus status);
+
+    Optional<DeliveryOrder> findByOrderCodeAndCourier_Id(String orderCode, Long courierId);
+
+    Optional<DeliveryOrder> findFirstByCourier_IdAndStatusIn(Long courierId, Collection<OrderStatus> statuses);
 }

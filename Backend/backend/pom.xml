@@ -153,9 +153,14 @@
 		</dependency>
 		<!-- MockMvc (di Boot 4 dipisah ke starter sendiri) — kalau belum ada -->
 		<dependency>
-		<groupId>org.springframework.boot</groupId>
-		<artifactId>spring-boot-starter-webmvc-test</artifactId>
-		<scope>test</scope>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-webmvc-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.cloudinary</groupId>
+			<artifactId>cloudinary-http5</artifactId>
+			<version>2.5.0</version>
 		</dependency>
 	</dependencies>
 

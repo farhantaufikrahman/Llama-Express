@@ -4,7 +4,8 @@ app:
     password: admin12345
   outbox:
     poll-interval-ms: 200
-
+  storage:
+    provider: fake
   dispatch:
     sweep-interval-ms: 500
     max-attempts: 3

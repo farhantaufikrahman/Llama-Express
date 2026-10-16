@@ -24,7 +24,7 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class OfferService {
 
-    private static final Set<OrderStatus> ACTIVE_JOB = EnumSet.of(
+    private static final Set<OrderStatus> COURIER_ACTIVE = EnumSet.of(
             OrderStatus.ASSIGNED, OrderStatus.PICKING_UP, OrderStatus.PICKED_UP, OrderStatus.IN_TRANSIT);
 
     private final OrderOfferRepository offerRepository;
@@ -52,7 +52,7 @@ public class OfferService {
         if (!profile.isOnline()) {
             throw new ConflictException("COURIER_OFFLINE", "Aktifkan status online terlebih dahulu");
         }
-        if (orderRepository.existsByCourier_IdAndStatusIn(courierId, ACTIVE_JOB)) {
+        if (orderRepository.existsByCourier_IdAndStatusIn(courierId, COURIER_ACTIVE)) {
             throw new ConflictException("COURIER_BUSY", "Selesaikan pengantaran yang sedang berjalan terlebih dahulu");
         }
 
