@@ -30,6 +30,9 @@ public class DeliveryOrder extends BaseEntity {
     @Column(nullable = false, length = 64, unique = true)
     private String trackingToken;
 
+    @Column(nullable = false)
+    private int dispatchAttempts;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "customer_id")
     private User customer;
@@ -156,5 +159,23 @@ public class DeliveryOrder extends BaseEntity {
                     "Status tidak bisa berubah dari " + status + " ke " + next);
         }
         this.status = next;
+    }
+
+    public void incrementDispatchAttempts() {
+        this.dispatchAttempts++;
+    }
+
+    public void failDispatch() {
+        transitionTo(OrderStatus.FAILED);
+    }
+
+    public void assignCourier(User courier, Instant now) {
+        if (status != OrderStatus.SEARCHING_COURIER) {
+            throw new ConflictException("ORDER_ALREADY_TAKEN",
+                    "Order sudah diambil kurir lain atau tidak lagi tersedia");
+        }
+        transitionTo(OrderStatus.ASSIGNED);
+        this.courier = courier;
+        this.assignedAt = now;
     }
 }

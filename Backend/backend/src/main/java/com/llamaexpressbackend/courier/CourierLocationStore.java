@@ -21,10 +21,34 @@ public class CourierLocationStore {
     private final StringRedisTemplate redis;
 
     public void update(Long courierId, VehicleType vehicle, double lat, double lng) {
-        // Point(x, y) = Point(LONGITUDE, LATITUDE) — urutan ini sering tertukar!
-        redis.opsForGeo().add(geoKey(vehicle), new Point(lng, lat), courierId.toString());
         redis.opsForValue().set(heartbeatKey(courierId), "1", HEARTBEAT_TTL);
+        if (Boolean.TRUE.equals(redis.hasKey(busyKey(courierId)))) {
+            return; // sedang mengantar → jangan masuk daftar "tersedia"
+        }
+        // Point(x, y) = Point(LONGITUDE, LATITUDE)
+        redis.opsForGeo().add(geoKey(vehicle), new Point(lng, lat), courierId.toString());
     }
+
+    public void markBusy(Long courierId, VehicleType vehicle) {
+        redis.opsForValue().set(busyKey(courierId), "1");
+        redis.opsForGeo().remove(geoKey(vehicle), courierId.toString());
+    }
+
+    public void markAvailable(Long courierId) {
+        redis.delete(busyKey(courierId)); // masuk lagi ke daftar tersedia pada kiriman lokasi berikutnya
+    }
+
+    static String busyKey(Long courierId) {
+        return "courier:busy:" + courierId;
+    }
+
+    // public void update(Long courierId, VehicleType vehicle, double lat, double
+    // lng) {
+    // // Point(x, y) = Point(LONGITUDE, LATITUDE) — urutan ini sering tertukar!
+    // redis.opsForGeo().add(geoKey(vehicle), new Point(lng, lat),
+    // courierId.toString());
+    // redis.opsForValue().set(heartbeatKey(courierId), "1", HEARTBEAT_TTL);
+    // }
 
     public void remove(Long courierId, VehicleType vehicle) {
         redis.opsForGeo().remove(geoKey(vehicle), courierId.toString());
