@@ -19,7 +19,7 @@ public class CourierProfile extends BaseEntity {
     @Id
     private Long userId;
 
-    @MapsId // PK diambil dari user.id
+    @MapsId
     @OneToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id")
     private User user;
@@ -47,11 +47,15 @@ public class CourierProfile extends BaseEntity {
     @Column(nullable = false)
     private int ratingCount;
 
+    public static String normalizePlate(String plate) {
+        return plate.replace(" ", "").toUpperCase(java.util.Locale.ROOT);
+    }
+
     public static CourierProfile create(User user, VehicleType vehicleType, String plateNumber, String licenseNo) {
         CourierProfile p = new CourierProfile();
         p.user = user;
         p.vehicleType = vehicleType;
-        p.plateNumber = plateNumber.replace(" ", "").toUpperCase();
+        p.plateNumber = normalizePlate(plateNumber);
         p.licenseNo = licenseNo;
         return p;
     }
