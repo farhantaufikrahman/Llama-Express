@@ -102,14 +102,15 @@ class OrderFlowIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.code").value("OVERWEIGHT"));
     }
 
-    private static String orderJson(String paymentMethod, String weightKg) {
-        return """
-                {"serviceType":"INSTANT","vehicleType":"MOTOR","itemCategory":"DOCUMENT",
-                 "itemDesc":"Berkas kontrak","weightKg":%s,
-                 "pickup":{"address":"Titik A","lat":-6.90,"lng":107.60},
-                 "dropoff":{"address":"Titik B","lat":-6.91,"lng":107.60},
-                 "recipientName":"Budi","recipientPhone":"081298765432","notes":"Titip resepsionis",
-                 "paymentMethod":"%s"}
-                """.formatted(weightKg, paymentMethod);
-    }
+    // private static String orderJson(String paymentMethod, String weightKg) {
+    // return """
+    // {"serviceType":"INSTANT","vehicleType":"MOTOR","itemCategory":"DOCUMENT",
+    // "itemDesc":"Berkas kontrak","weightKg":%s,
+    // "pickup":{"address":"Titik A","lat":-6.90,"lng":107.60},
+    // "dropoff":{"address":"Titik B","lat":-6.91,"lng":107.60},
+    // "recipientName":"Budi","recipientPhone":"081298765432","notes":"Titip
+    // resepsionis",
+    // "paymentMethod":"%s"}
+    // """.formatted(weightKg, paymentMethod);
+    // }
 }

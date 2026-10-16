@@ -1,4 +1,7 @@
 app:
+  outbox:
+    enabled: true
+    poll-interval-ms: 1000
   security:
     jwt:
       secret: ${JWT_SECRET}
@@ -47,6 +50,7 @@ spring:
       acks: all
       properties:
         enable.idempotence: true
+        max.block.ms: 5000
     consumer:
       group-id: llama-express
       auto-offset-reset: earliest

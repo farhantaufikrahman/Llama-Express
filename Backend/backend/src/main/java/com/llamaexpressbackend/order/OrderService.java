@@ -13,6 +13,11 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.llamaexpressbackend.common.outbox.OutboxService;
+import com.llamaexpressbackend.order.event.OrderCreatedEvent;
+import com.llamaexpressbackend.order.event.OrderStatusChangedEvent;
+import java.time.Instant;
+
 import java.time.Clock;
 
 @Service
@@ -20,7 +25,8 @@ import java.time.Clock;
 public class OrderService {
 
     private static final int MAX_PAGE_SIZE = 50;
-
+    private static final String AGGREGATE = "Order";
+    private final OutboxService outboxService;
     private final DeliveryOrderRepository orderRepository;
     private final OrderStatusHistoryRepository historyRepository;
     private final UserRepository userRepository;
@@ -35,23 +41,47 @@ public class OrderService {
 
     @Transactional
     public OrderResponse create(Long customerId, CreateOrderRequest req) {
-        // Harga dihitung ULANG di server — jangan pernah percaya harga dari client
         QuoteResponse quote = pricingService.quote(req.serviceType(), req.vehicleType(),
                 req.pickup(), req.dropoff(), req.weightKg());
 
-        User customer = userRepository.getReferenceById(customerId); // proxy, tanpa SELECT
+        User customer = userRepository.getReferenceById(customerId);
         DeliveryOrder order = DeliveryOrder.place(customer, req, quote,
                 codeGenerator.orderCode(), codeGenerator.trackingToken(), codeGenerator.verificationCode());
         orderRepository.save(order);
-        recordHistory(order, null, customerId, "Order dibuat");
+
+        recordTransition(order, null, customerId, "Order dibuat");
+        outboxService.record(AGGREGATE, order.getOrderCode(), OrderCreatedEvent.TYPE,
+                OrderCreatedEvent.from(order, clock.instant()));
 
         if (order.getPaymentMethod() == PaymentMethod.CASH) {
             OrderStatus from = order.getStatus();
             order.startSearchingCourier();
-            recordHistory(order, from, customerId, null);
+            recordTransition(order, from, customerId, null);
         }
         return toResponse(order);
     }
+    // @Transactional
+    // public OrderResponse create(Long customerId, CreateOrderRequest req) {
+    // // Harga dihitung ULANG di server — jangan pernah percaya harga dari client
+    // QuoteResponse quote = pricingService.quote(req.serviceType(),
+    // req.vehicleType(),
+    // req.pickup(), req.dropoff(), req.weightKg());
+
+    // User customer = userRepository.getReferenceById(customerId); // proxy, tanpa
+    // SELECT
+    // DeliveryOrder order = DeliveryOrder.place(customer, req, quote,
+    // codeGenerator.orderCode(), codeGenerator.trackingToken(),
+    // codeGenerator.verificationCode());
+    // orderRepository.save(order);
+    // recordHistory(order, null, customerId, "Order dibuat");
+
+    // if (order.getPaymentMethod() == PaymentMethod.CASH) {
+    // OrderStatus from = order.getStatus();
+    // order.startSearchingCourier();
+    // recordHistory(order, from, customerId, null);
+    // }
+    // return toResponse(order);
+    // }
 
     @Transactional(readOnly = true)
     public PageResponse<OrderSummaryResponse> list(Long customerId, OrderStatus status, int page, int size) {
@@ -73,7 +103,8 @@ public class OrderService {
         DeliveryOrder order = findOwned(customerId, code);
         OrderStatus from = order.getStatus();
         order.cancelByCustomer(reason, clock.instant());
-        recordHistory(order, from, customerId, reason);
+        recordTransition(order, from, customerId, reason);
+        // recordHistory(order, from, customerId, reason);
         return toResponse(order);
     }
 
@@ -84,9 +115,19 @@ public class OrderService {
                 .orElseThrow(() -> new NotFoundException("ORDER_NOT_FOUND", "Order tidak ditemukan"));
     }
 
-    private void recordHistory(DeliveryOrder order, OrderStatus from, Long actorId, String note) {
-        historyRepository.save(OrderStatusHistory.record(order, from, actorId, note, clock.instant()));
+    private void recordTransition(DeliveryOrder order, OrderStatus from, Long actorId, String note) {
+        Instant now = clock.instant();
+        historyRepository.save(OrderStatusHistory.record(order, from, actorId, note, now));
+        if (from != null) {
+            outboxService.record(AGGREGATE, order.getOrderCode(), OrderStatusChangedEvent.TYPE,
+                    new OrderStatusChangedEvent(order.getOrderCode(), from, order.getStatus(), actorId, note, now));
+        }
     }
+    // private void recordHistory(DeliveryOrder order, OrderStatus from, Long
+    // actorId, String note) {
+    // historyRepository.save(OrderStatusHistory.record(order, from, actorId, note,
+    // clock.instant()));
+    // }
 
     private OrderResponse toResponse(DeliveryOrder order) {
         return OrderResponse.from(order, historyRepository.findByOrder_IdOrderByIdAsc(order.getId()));
