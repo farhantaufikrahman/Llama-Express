@@ -36,6 +36,17 @@ public abstract class AbstractIntegrationTest {
         return read(r, "$.accessToken");
     }
 
+    protected static String orderJson(String paymentMethod, String weightKg) {
+        return """
+                {"serviceType":"INSTANT","vehicleType":"MOTOR","itemCategory":"DOCUMENT",
+                 "itemDesc":"Berkas kontrak","weightKg":%s,
+                 "pickup":{"address":"Titik A","lat":-6.90,"lng":107.60},
+                 "dropoff":{"address":"Titik B","lat":-6.91,"lng":107.60},
+                 "recipientName":"Budi","recipientPhone":"081298765432","notes":"Titip resepsionis",
+                 "paymentMethod":"%s"}
+                """.formatted(weightKg, paymentMethod);
+    }
+
     protected static String bearer(String token) {
         return "Bearer " + token;
     }

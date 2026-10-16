@@ -1,4 +1,6 @@
 app:
+  outbox:
+    poll-interval-ms: 200
   security:
     jwt:
       # secret KHUSUS test (bukan rahasia, aman di-commit) — base64 dari 45 byte

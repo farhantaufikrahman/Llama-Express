@@ -146,7 +146,11 @@
 			<artifactId>testcontainers-oracle-free</artifactId>
 			<scope>test</scope>
 		</dependency>
-
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>testcontainers-kafka</artifactId>
+			<scope>test</scope>
+		</dependency>
 		<!-- MockMvc (di Boot 4 dipisah ke starter sendiri) — kalau belum ada -->
 		<dependency>
 		<groupId>org.springframework.boot</groupId>
