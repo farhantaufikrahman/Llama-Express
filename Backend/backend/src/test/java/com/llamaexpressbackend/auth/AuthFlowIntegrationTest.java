@@ -1,6 +1,5 @@
 package com.llamaexpressbackend.auth;
 
-import com.jayway.jsonpath.JsonPath;
 import com.llamaexpressbackend.support.AbstractIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MvcResult;
@@ -152,9 +151,5 @@ class AuthFlowIntegrationTest extends AbstractIntegrationTest {
         return """
                 {"refreshToken":"%s"}
                 """.formatted(refreshToken);
-    }
-
-    private static String read(MvcResult result, String path) throws Exception {
-        return JsonPath.read(result.getResponse().getContentAsString(), path);
     }
 }

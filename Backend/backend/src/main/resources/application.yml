@@ -6,6 +6,16 @@ app:
       access-token-ttl: 15m
       refresh-token-ttl: 7d
 
+  order:
+    road-factor: 1.3          # jarak garis lurus × 1.3 ≈ jarak jalan (estimasi)
+    max-distance-km: 50
+    avg-speed-kmh:
+      MOTOR: 25
+      CAR: 20
+    max-weight-kg:
+      MOTOR: 20
+      CAR: 200
+
 spring:
   application:
     name: llama-express
