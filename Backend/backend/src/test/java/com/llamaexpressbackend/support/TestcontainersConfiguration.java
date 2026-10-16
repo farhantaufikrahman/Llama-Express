@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Bean;
 import org.testcontainers.oracle.OracleContainer;
 import org.testcontainers.kafka.KafkaContainer;
 import org.testcontainers.utility.DockerImageName;
+import org.testcontainers.containers.GenericContainer;
 
 @TestConfiguration(proxyBeanMethods = false)
 public class TestcontainersConfiguration {
@@ -26,5 +27,11 @@ public class TestcontainersConfiguration {
     @ServiceConnection
     OracleContainer oracleContainer() {
         return new OracleContainer(DockerImageName.parse("gvenzl/oracle-free:23-slim-faststart"));
+    }
+
+    @Bean
+    @ServiceConnection(name = "redis") // GenericContainer → Spring perlu diberi tahu ini Redis lewat "name"
+    GenericContainer<?> redisContainer() {
+        return new GenericContainer<>(DockerImageName.parse("redis:7-alpine")).withExposedPorts(6379);
     }
 }

@@ -1,4 +1,7 @@
 app:
+  admin:
+    email: admin@test.local
+    password: admin12345
   outbox:
     poll-interval-ms: 200
   security:
