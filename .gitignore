@@ -1,0 +1,19 @@
+# secrets
+**/.env
+**/.env.*
+!**/.env.example
+
+# java / maven
+**/target/
+*.class
+
+# node / vite
+**/node_modules/
+**/dist/
+**/coverage/
+
+# IDE & OS
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
