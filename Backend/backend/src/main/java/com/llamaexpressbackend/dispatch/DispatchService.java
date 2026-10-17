@@ -24,6 +24,7 @@ public class DispatchService {
     private final CourierLocationStore locationStore;
     private final OrderTransitionRecorder transitions;
     private final ProcessedEventStore processedEvents;
+    private final DispatchAttemptCounter attemptCounter;
     private final DispatchProperties props;
     private final Clock clock;
 
@@ -37,10 +38,6 @@ public class DispatchService {
         dispatchRound(orderCode);
     }
 
-    /**
-     * Satu putaran dispatch. Aman dipanggil berulang (dari listener maupun
-     * sweeper).
-     */
     @Transactional
     public void dispatchRound(String orderCode) {
         DeliveryOrder order = orderRepository.findByOrderCode(orderCode).orElse(null);
@@ -51,15 +48,16 @@ public class DispatchService {
         if (offerRepository.existsByOrder_IdAndStatusAndExpiresAtAfter(order.getId(), OfferStatus.OFFERED, now)) {
             return; // masih ada tawaran yang menunggu jawaban
         }
-        if (order.getDispatchAttempts() >= props.maxAttempts()) {
+        if (attemptCounter.current(orderCode) >= props.maxAttempts()) {
             OrderStatus from = order.getStatus();
             order.failDispatch();
             transitions.record(order, from, null, "Tidak ada kurir yang tersedia");
-            log.info("Dispatch {} gagal setelah {} putaran", orderCode, order.getDispatchAttempts());
+            attemptCounter.clear(orderCode);
+            log.info("Dispatch {} gagal setelah {} putaran", orderCode, props.maxAttempts());
             return;
         }
 
-        order.incrementDispatchAttempts();
+        int round = attemptCounter.increment(orderCode);
         Set<Long> alreadyOffered = offerRepository.findCourierIdsByOrderId(order.getId());
         List<NearbyCourier> candidates = locationStore.findNearby(order.getVehicleType(),
                 order.getPickup().getLat().doubleValue(), order.getPickup().getLng().doubleValue(),
@@ -73,8 +71,7 @@ public class DispatchService {
         for (NearbyCourier c : candidates) {
             offerRepository.save(OrderOffer.create(order, c.courierId(), now, expiresAt));
         }
-        log.info("Dispatch {} putaran {}: {} kurir ditawari", orderCode, order.getDispatchAttempts(),
-                candidates.size());
+        log.info("Dispatch {} putaran {}: {} kurir ditawari", orderCode, round, candidates.size());
     }
 
     @Transactional

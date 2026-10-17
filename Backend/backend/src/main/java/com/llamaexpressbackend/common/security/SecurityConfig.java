@@ -44,6 +44,7 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                                                 .requestMatchers("/api/v1/courier/**").hasRole("COURIER")
                                                 .requestMatchers("/api/v1/orders/**").hasRole("CUSTOMER")
+                                                .requestMatchers("/api/v1/addresses/**").hasRole("CUSTOMER")
                                                 .anyRequest().authenticated())
                                 .oauth2ResourceServer(o -> o.jwt(
                                                 jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter)));

@@ -30,9 +30,6 @@ public class DeliveryOrder extends BaseEntity {
     @Column(nullable = false, length = 64, unique = true)
     private String trackingToken;
 
-    @Column(nullable = false)
-    private int dispatchAttempts;
-
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "customer_id")
     private User customer;
@@ -159,10 +156,6 @@ public class DeliveryOrder extends BaseEntity {
                     "Status tidak bisa berubah dari " + status + " ke " + next);
         }
         this.status = next;
-    }
-
-    public void incrementDispatchAttempts() {
-        this.dispatchAttempts++;
     }
 
     public void failDispatch() {

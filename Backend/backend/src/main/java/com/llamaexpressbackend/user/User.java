@@ -68,4 +68,8 @@ public class User extends BaseEntity {
         return status == UserStatus.ACTIVE;
     }
 
+    public void changePassword(String newPasswordHash) {
+        this.passwordHash = newPasswordHash;
+    }
+
 }
