@@ -66,7 +66,12 @@ app:
       MOTOR: 20
       CAR: 200
 
+logging:
+  pattern:
+    correlation: "[%X{requestId:-}] "  
 spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 20s  
   application:
     name: llama-express
   config:
@@ -121,11 +126,20 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus
   endpoint:
     health:
-      show-details: always        # hanya untuk lokal
-
+      probes:
+        enabled: true                         # Boot 4 sudah default true; ditulis eksplisit supaya jelas
+      group:
+        readiness:
+          include: readinessState,db,redis    # siap terima traffic = DB & Redis bisa dijangkau
+  metrics:
+    tags:
+      application: ${spring.application.name} # label di semua metrik → bisa membedakan service di Grafana
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true            # wajib supaya p95/p99 bisa dihitung di Prometheus
 springdoc:
   swagger-ui:
     path: /swagger-ui.html

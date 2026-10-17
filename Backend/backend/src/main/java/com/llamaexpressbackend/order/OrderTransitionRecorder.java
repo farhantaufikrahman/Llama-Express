@@ -25,10 +25,13 @@ public class OrderTransitionRecorder {
     private final OutboxService outboxService;
     private final Clock clock;
 
+    private final OrderMetrics metrics; // field baru (constructor dibuat otomatis oleh Lombok)
+
     @Transactional(propagation = Propagation.MANDATORY)
     public void recordCreated(DeliveryOrder order) {
         outboxService.record(AGGREGATE, order.getOrderCode(), OrderCreatedEvent.TYPE,
                 OrderCreatedEvent.from(order, clock.instant()));
+        metrics.created(order); // ⬅ baru
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
@@ -39,5 +42,6 @@ public class OrderTransitionRecorder {
             outboxService.record(AGGREGATE, order.getOrderCode(), OrderStatusChangedEvent.TYPE,
                     new OrderStatusChangedEvent(order.getOrderCode(), from, order.getStatus(), actorId, note, now));
         }
+        metrics.transitioned(order); // ⬅ baru
     }
 }

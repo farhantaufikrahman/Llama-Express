@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import io.micrometer.core.instrument.MeterRegistry;
 
 @Slf4j
 @Component
@@ -34,6 +35,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private final RateLimitProperties props;
     private final RedisRateLimiter limiter;
     private final JsonMapper jsonMapper;
+    private final MeterRegistry meterRegistry;
 
     public static String key(String rule, String clientIp) {
         return "ratelimit:" + rule + ":" + clientIp;
@@ -67,6 +69,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         response.setHeader("X-RateLimit-Limit", String.valueOf(decision.limit()));
         response.setHeader("X-RateLimit-Remaining", String.valueOf(decision.remaining()));
         if (!decision.allowed()) {
+            meterRegistry.counter("llama.ratelimit.rejected", "rule", rule.getKey()).increment();
             reject(request, response, decision);
             return;
         }
@@ -96,6 +99,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         body.put("detail", "Terlalu banyak permintaan. Coba lagi dalam " + d.retryAfterSeconds() + " detik");
         body.put("instance", request.getRequestURI());
         body.put("code", "RATE_LIMITED");
+        body.put("requestId", org.slf4j.MDC.get(com.llamaexpressbackend.common.web.RequestIdFilter.MDC_KEY));
 
         response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
         response.setHeader(HttpHeaders.RETRY_AFTER, String.valueOf(d.retryAfterSeconds()));
