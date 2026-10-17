@@ -15,6 +15,10 @@ public interface CourierProfileRepository extends JpaRepository<CourierProfile, 
 
     boolean existsByPlateNumber(String plateNumber);
 
+    long countByOnlineTrue();
+
+    Optional<CourierProfile> findByUserId(Long userId);
+
     /** EntityGraph: ambil profil + user dalam 1 query JOIN, bukan 1 + N query */
     @EntityGraph(attributePaths = "user")
     Optional<CourierProfile> findWithUserByUserId(Long userId);

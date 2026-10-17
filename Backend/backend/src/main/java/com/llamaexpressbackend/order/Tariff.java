@@ -53,4 +53,12 @@ public class Tariff extends BaseEntity {
         t.activeFrom = activeFrom;
         return t;
     }
+
+    public void closeAt(Instant at) {
+        this.activeTo = at;
+    }
+
+    public boolean isActiveAt(Instant at) {
+        return !activeFrom.isAfter(at) && (activeTo == null || activeTo.isAfter(at));
+    }
 }

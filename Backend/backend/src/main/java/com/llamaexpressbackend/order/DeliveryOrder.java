@@ -162,6 +162,12 @@ public class DeliveryOrder extends BaseEntity {
         transitionTo(OrderStatus.FAILED);
     }
 
+    public void cancelByAdmin(String reason, Instant now) {
+        transitionTo(OrderStatus.CANCELLED);
+        this.cancelledAt = now;
+        this.cancelReason = reason.trim();
+    }
+
     public void assignCourier(User courier, Instant now) {
         if (status != OrderStatus.SEARCHING_COURIER) {
             throw new ConflictException("ORDER_ALREADY_TAKEN",
