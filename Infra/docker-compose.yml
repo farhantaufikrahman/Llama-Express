@@ -1,6 +1,26 @@
 name: llama-express
 
 services:
+  backend:
+    build:
+      context: ../Backend/backend
+    image: llama-express-backend:local
+    profiles: ["app"]                      # tidak ikut "docker compose up -d" biasa (saat dev, backend jalan di laptop)
+    ports:
+      - "8080:8080"
+    env_file:
+      - ../Backend/backend/.env            # rahasia diberikan saat RUNTIME, bukan dipanggang ke image
+    environment:
+      # alamat antar-container memakai NAMA SERVICE, bukan localhost
+      SPRING_DATASOURCE_URL: jdbc:oracle:thin:@//oracle:1521/FREEPDB1
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:19092
+      SPRING_DATA_REDIS_HOST: redis
+    depends_on:
+      - oracle
+      - kafka
+      - redis
+    restart: on-failure                    # Oracle butuh ±1 menit untuk siap → backend mencoba lagi sampai berhasil
+    stop_grace_period: 30s                 # beri waktu graceful shutdown (timeout-per-shutdown-phase 20s)
   sonarqube:
     image: sonarqube:26.10.0.133078-community
     profiles: ["quality"]            # TIDAK ikut jalan saat "docker compose up -d" biasa
