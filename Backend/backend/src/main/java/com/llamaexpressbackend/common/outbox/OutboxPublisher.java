@@ -2,12 +2,13 @@ package com.llamaexpressbackend.common.outbox;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
@@ -26,11 +27,19 @@ public class OutboxPublisher {
 
     private final OutboxEventRepository repository;
     private final KafkaTemplate<String, String> kafkaTemplate;
+    private final TransactionTemplate tx;
     private final Clock clock;
 
+    /**
+     * Hanya SATU replica yang memegang kunci → urutan event per order tetap terjaga
+     */
     @Scheduled(fixedDelayString = "${app.outbox.poll-interval-ms:1000}")
-    @Transactional
+    @SchedulerLock(name = "outbox-publisher", lockAtMostFor = "PT1M")
     public void publishPending() {
+        tx.executeWithoutResult(status -> publishBatch());
+    }
+
+    private void publishBatch() {
         List<OutboxEvent> batch = repository.findTop100ByPublishedAtIsNullOrderByIdAsc();
         for (OutboxEvent event : batch) {
             try {
@@ -39,14 +48,12 @@ public class OutboxPublisher {
                 record.headers().add("eventId", String.valueOf(event.getId()).getBytes(StandardCharsets.UTF_8));
                 record.headers().add("eventType", event.getEventType().getBytes(StandardCharsets.UTF_8));
 
-                kafkaTemplate.send(record).get(SEND_TIMEOUT_MS, TimeUnit.MILLISECONDS); // tunggu ack broker
+                kafkaTemplate.send(record).get(SEND_TIMEOUT_MS, TimeUnit.MILLISECONDS);
                 event.markPublished(clock.instant());
             } catch (InterruptedException ex) {
                 Thread.currentThread().interrupt();
                 return;
             } catch (ExecutionException | TimeoutException ex) {
-                // Berhenti di event pertama yang gagal → urutan event tetap terjaga. Dicoba
-                // lagi di siklus berikutnya.
                 log.warn("Gagal publish outbox event id={} type={}: {}", event.getId(), event.getEventType(),
                         ex.getMessage());
                 return;

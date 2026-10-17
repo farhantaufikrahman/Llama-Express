@@ -4,6 +4,8 @@ import com.llamaexpressbackend.order.DeliveryOrderRepository;
 import com.llamaexpressbackend.order.OrderStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
+
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -22,6 +24,7 @@ public class DispatchSweeper {
     private final DeliveryOrderRepository orderRepository;
 
     @Scheduled(fixedDelayString = "${app.dispatch.sweep-interval-ms:5000}")
+    @SchedulerLock(name = "dispatch-sweeper", lockAtMostFor = "PT1M")
     public void sweep() {
         int expired = dispatchService.expireStaleOffers();
         if (expired > 0) {

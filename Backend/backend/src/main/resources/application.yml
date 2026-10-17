@@ -1,4 +1,22 @@
 app:
+  rate-limit:
+    enabled: true
+    rules:
+      auth:
+        paths: [/api/v1/auth/login, /api/v1/auth/register, /api/v1/auth/refresh]
+        limit: 20
+        window: 1m
+      tracking:
+        paths: [/api/v1/track/]
+        limit: 60
+        window: 1m
+  housekeeping:
+    enabled: true
+    cron: "0 0 3 * * *"        # setiap jam 03:00
+    zone: Asia/Jakarta
+    outbox-retention: 7d
+    processed-events-retention: 14d
+    batch-size: 5000
   courier:
     earning-share: 0.80          # kurir mendapat 80% dari ongkir (CONTOH — sesuaikan model bisnismu)
     business-zone: Asia/Jakarta

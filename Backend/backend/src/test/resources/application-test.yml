@@ -1,4 +1,10 @@
 app:
+  rate-limit:
+    rules:
+      auth:
+        limit: 1000
+      tracking:
+        limit: 1000
   midtrans:
     provider: fake
     server-key: SB-Mid-server-TEST
