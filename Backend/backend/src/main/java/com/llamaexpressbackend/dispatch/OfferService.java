@@ -75,7 +75,8 @@ public class OfferService {
         offerRepository.expireOthers(order.getId(), offer.getId(), now, OfferStatus.OFFERED, OfferStatus.EXPIRED);
 
         // 4. Redis paling akhir — setelah semua operasi DB yang bisa gagal
-        locationStore.markBusy(courierId, profile.getVehicleType());
+        // locationStore.markBusy(courierId, profile.getVehicleType());
+        locationStore.markBusy(courierId, profile.getVehicleType(), order.getOrderCode());
         return CourierJobResponse.from(order);
     }
 

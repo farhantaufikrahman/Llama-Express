@@ -7,6 +7,9 @@ import com.llamaexpressbackend.courier.dto.LocationUpdateRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.llamaexpressbackend.tracking.CourierLocationEvent;
+import com.llamaexpressbackend.tracking.CourierLocationPublisher;
+import java.time.Clock;
 
 @Service
 @RequiredArgsConstructor
@@ -14,6 +17,8 @@ public class CourierService {
 
     private final CourierProfileRepository profileRepository;
     private final CourierLocationStore locationStore;
+    private final CourierLocationPublisher locationPublisher;
+    private final Clock clock;
 
     @Transactional(readOnly = true)
     public CourierProfileResponse me(Long courierId) {
@@ -38,8 +43,20 @@ public class CourierService {
         if (!profile.isOnline()) {
             throw new ConflictException("COURIER_OFFLINE", "Aktifkan status online terlebih dahulu");
         }
-        locationStore.update(courierId, profile.getVehicleType(), req.lat(), req.lng());
+        locationStore.update(courierId, profile.getVehicleType(), req.lat(), req.lng())
+                .ifPresent(orderCode -> locationPublisher.publish(new CourierLocationEvent(
+                        orderCode, courierId, req.lat(), req.lng(), req.speed(), req.heading(), clock.instant())));
     }
+    // @Transactional(readOnly = true)
+    // public void updateLocation(Long courierId, LocationUpdateRequest req) {
+    // CourierProfile profile = find(courierId);
+    // if (!profile.isOnline()) {
+    // throw new ConflictException("COURIER_OFFLINE", "Aktifkan status online
+    // terlebih dahulu");
+    // }
+    // locationStore.update(courierId, profile.getVehicleType(), req.lat(),
+    // req.lng());
+    // }
 
     private CourierProfile find(Long courierId) {
         return profileRepository.findWithUserByUserId(courierId)

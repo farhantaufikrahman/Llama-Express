@@ -1,4 +1,7 @@
 app:
+  cors:
+    allowed-origins:
+      - http://localhost:5173 
   storage:
     provider: cloudinary           # "fake" = tidak benar-benar upload (test / dev tanpa akun)
     cloudinary-url: ${CLOUDINARY_URL:}

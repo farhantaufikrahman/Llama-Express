@@ -21,4 +21,11 @@ public class KafkaTopics {
     NewTopic orderStatusChangedTopic() {
         return TopicBuilder.name(ORDER_STATUS_CHANGED).partitions(3).replicas(1).build();
     }
+
+    public static final String COURIER_LOCATION = "courier.location";
+
+    @Bean
+    NewTopic courierLocationTopic() {
+        return TopicBuilder.name(COURIER_LOCATION).partitions(3).replicas(1).build();
+    }
 }
