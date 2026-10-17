@@ -1,4 +1,10 @@
 app:
+  cors:
+    allowed-origins:
+      - http://localhost:5173 
+  storage:
+    provider: cloudinary           # "fake" = tidak benar-benar upload (test / dev tanpa akun)
+    cloudinary-url: ${CLOUDINARY_URL:}
   admin:
     email: ${ADMIN_EMAIL:}
     password: ${ADMIN_PASSWORD:}
@@ -73,6 +79,11 @@ spring:
       port: 6379
       repositories:
         enabled: false
+
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
 
 server:
   port: 8080

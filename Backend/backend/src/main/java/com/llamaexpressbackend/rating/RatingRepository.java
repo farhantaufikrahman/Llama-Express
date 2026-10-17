@@ -1,0 +1,7 @@
+package com.llamaexpressbackend.rating;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface RatingRepository extends JpaRepository<Rating, Long> {
+    boolean existsByOrder_Id(Long orderId);
+}

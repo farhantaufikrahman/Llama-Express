@@ -21,6 +21,7 @@ public enum OrderStatus {
         TRANSITIONS.put(CANCELLED, EnumSet.noneOf(OrderStatus.class));
         TRANSITIONS.put(FAILED, EnumSet.noneOf(OrderStatus.class));
     }
+    public static final Set<OrderStatus> COURIER_ACTIVE = EnumSet.of(ASSIGNED, PICKING_UP, PICKED_UP, IN_TRANSIT);
 
     public boolean canTransitionTo(OrderStatus next) {
         return TRANSITIONS.get(this).contains(next);

@@ -1,0 +1,178 @@
+package com.llamaexpressbackend.tracking;
+
+import com.jayway.jsonpath.JsonPath;
+import com.llamaexpressbackend.support.AbstractIntegrationTest;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.messaging.converter.SimpleMessageConverter;
+import org.springframework.messaging.simp.stomp.*;
+import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.web.socket.WebSocketHttpHeaders;
+import org.springframework.web.socket.client.standard.StandardWebSocketClient;
+import org.springframework.web.socket.messaging.WebSocketStompClient;
+
+import java.lang.reflect.Type;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.List;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
+
+import static org.assertj.core.api.Assertions.*;
+import static org.springframework.http.HttpHeaders.AUTHORIZATION;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+/** Lokasi tiap test berjauhan dari test dispatch/delivery lain */
+class TrackingIntegrationTest extends AbstractIntegrationTest {
+
+    @Value("${local.server.port}")
+    int port;
+
+    private record AssignedOrder(TestCourier courier, String customerToken, String code) { }
+
+    @Test
+    void customer_receivesLiveStatusAndLocation_overWebSocket() throws Exception {
+        double lat = -6.70, lng = 111.20;
+        AssignedOrder o = assignedOrder(lat, lng);
+
+        StompSession session = connect(o.customerToken());
+        BlockingQueue<String> statuses = subscribe(session, "/topic/orders/" + o.code() + "/status");
+        BlockingQueue<String> locations = subscribe(session, "/topic/orders/" + o.code() + "/location");
+        Thread.sleep(500); // beri waktu frame SUBSCRIBE diproses server
+
+        // kurir berangkat → customer menerima status PICKING_UP
+        mockMvc.perform(post("/api/v1/courier/jobs/" + o.code() + "/start-pickup")
+                        .header(AUTHORIZATION, bearer(o.courier().token())))
+                .andExpect(status().isOk());
+        String statusMsg = awaitMessage(statuses, m -> "PICKING_UP".equals(JsonPath.read(m, "$.status")));
+        assertThat(statusMsg).isNotNull();
+
+        // kurir bergerak → customer menerima posisi baru
+        sendLocation(o.courier(), lat - 0.002, lng);
+        String locationMsg = awaitMessage(locations, m -> true);
+        assertThat(locationMsg).isNotNull();
+        assertThat((Double) JsonPath.read(locationMsg, "$.lat")).isCloseTo(lat - 0.002, within(1e-6));
+
+        session.disconnect();
+    }
+
+    @Test
+    void trackingSnapshot_andPublicLink_hideSensitiveData() throws Exception {
+        double lat = -6.50, lng = 111.50;
+        AssignedOrder o = assignedOrder(lat, lng);
+        sendLocation(o.courier(), lat - 0.001, lng);
+        sendLocation(o.courier(), lat - 0.002, lng);
+
+        // snapshot customer: lengkap, termasuk kontak kurir
+        mockMvc.perform(get("/api/v1/orders/" + o.code() + "/tracking").header(AUTHORIZATION, bearer(o.customerToken())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ASSIGNED"))
+                .andExpect(jsonPath("$.courier.plateNumber").exists())
+                .andExpect(jsonPath("$.courier.phone").exists())
+                .andExpect(jsonPath("$.lastLocation.lat").exists());
+
+        // rute diisi consumer riwayat secara asinkron
+        assertThat(awaitRouteSize(o, 2)).isGreaterThanOrEqualTo(2);
+
+        // link publik: tanpa login, tanpa nomor HP & kode verifikasi
+        MvcResult detail = mockMvc.perform(get("/api/v1/orders/" + o.code()).header(AUTHORIZATION, bearer(o.customerToken())))
+                .andReturn();
+        String trackingToken = read(detail, "$.trackingToken");
+        mockMvc.perform(get("/api/v1/track/" + trackingToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.orderCode").value(o.code()))
+                .andExpect(jsonPath("$.courier.phone").doesNotExist())
+                .andExpect(jsonPath("$.verificationCode").doesNotExist());
+        mockMvc.perform(get("/api/v1/track/token-ngawur"))
+                .andExpect(status().isNotFound());
+
+        // customer lain → 404
+        mockMvc.perform(get("/api/v1/orders/" + o.code() + "/tracking").header(AUTHORIZATION, bearer(registerCustomer())))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void websocket_rejectsConnectionWithoutToken() {
+        assertThatThrownBy(() -> connect(null)).isInstanceOf(Exception.class);
+    }
+
+    @Test
+    void websocket_rejectsSubscriptionToSomeoneElsesOrder() throws Exception {
+        StompSession session = connect(registerCustomer());
+        subscribe(session, "/topic/orders/LX-BUKANMILIKKU/status");
+        Thread.sleep(1000);
+        assertThat(session.isConnected()).isFalse(); // server mengirim ERROR lalu menutup koneksi
+    }
+
+    // ---------- helper khusus test ini ----------
+
+    private AssignedOrder assignedOrder(double lat, double lng) throws Exception {
+        TestCourier courier = verifiedOnlineCourier("MOTOR", lat, lng);
+        String customerToken = registerCustomer();
+        String code = createCashOrderAt(customerToken, lat, lng);
+        Long offerId = awaitOfferId(courier, code);
+        mockMvc.perform(post("/api/v1/courier/offers/" + offerId + "/accept").header(AUTHORIZATION, bearer(courier.token())))
+                .andExpect(status().isOk());
+        return new AssignedOrder(courier, customerToken, code);
+    }
+
+    private StompSession connect(String token) throws Exception {
+        WebSocketStompClient client = new WebSocketStompClient(new StandardWebSocketClient());
+        client.setMessageConverter(new SimpleMessageConverter()); // terima byte[] apa adanya
+        StompHeaders connectHeaders = new StompHeaders();
+        if (token != null) {
+            connectHeaders.add("Authorization", "Bearer " + token);
+        }
+        return client.connectAsync("ws://localhost:" + port + "/ws", new WebSocketHttpHeaders(), connectHeaders,
+                new StompSessionHandlerAdapter() { }).get(10, TimeUnit.SECONDS);
+    }
+
+    private static BlockingQueue<String> subscribe(StompSession session, String destination) {
+        BlockingQueue<String> queue = new LinkedBlockingQueue<>();
+        session.subscribe(destination, new StompFrameHandler() {
+            @Override
+            public Type getPayloadType(StompHeaders headers) {
+                return byte[].class;
+            }
+
+            @Override
+            public void handleFrame(StompHeaders headers, Object payload) {
+                queue.add(new String((byte[]) payload, StandardCharsets.UTF_8));
+            }
+        });
+        return queue;
+    }
+
+    /** Ambil pesan pertama yang cocok; pesan lain (mis. status ASSIGNED yang terlambat) dilewati */
+    private static String awaitMessage(BlockingQueue<String> queue, Predicate<String> matches) throws InterruptedException {
+        long deadline = System.nanoTime() + Duration.ofSeconds(15).toNanos();
+        while (System.nanoTime() < deadline) {
+            String msg = queue.poll(500, TimeUnit.MILLISECONDS);
+            if (msg != null && matches.test(msg)) {
+                return msg;
+            }
+        }
+        return null;
+    }
+
+    private int awaitRouteSize(AssignedOrder o, int minPoints) throws Exception {
+        long deadline = System.nanoTime() + Duration.ofSeconds(15).toNanos();
+        int size = 0;
+        while (System.nanoTime() < deadline) {
+            MvcResult r = mockMvc.perform(get("/api/v1/orders/" + o.code() + "/tracking")
+                    .header(AUTHORIZATION, bearer(o.customerToken()))).andReturn();
+            List<Object> route = JsonPath.read(r.getResponse().getContentAsString(), "$.route");
+            size = route.size();
+            if (size >= minPoints) {
+                return size;
+            }
+            Thread.sleep(300);
+        }
+        return size;
+    }
+}

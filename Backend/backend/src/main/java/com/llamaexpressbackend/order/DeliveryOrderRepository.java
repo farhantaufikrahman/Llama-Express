@@ -23,4 +23,21 @@ public interface DeliveryOrderRepository extends JpaRepository<DeliveryOrder, Lo
 
     @Query("select o.orderCode from DeliveryOrder o where o.status = :status")
     List<String> findCodesByStatus(@Param("status") OrderStatus status);
+
+    Optional<DeliveryOrder> findByOrderCodeAndCourier_Id(String orderCode, Long courierId);
+
+    Optional<DeliveryOrder> findFirstByCourier_IdAndStatusIn(Long courierId, Collection<OrderStatus> statuses);
+
+    Optional<DeliveryOrder> findByTrackingToken(String trackingToken);
+
+    @Query("select o.id from DeliveryOrder o where o.orderCode = :code")
+    Optional<Long> findIdByOrderCode(@Param("code") String code);
+
+    /** Apakah user ini customer ATAU kurir dari order tersebut */
+    @Query("""
+            select case when count(o) > 0 then true else false end
+            from DeliveryOrder o
+            where o.orderCode = :code and (o.customer.id = :userId or o.courier.id = :userId)
+            """)
+    boolean isParticipant(@Param("code") String code, @Param("userId") Long userId);
 }

@@ -178,4 +178,25 @@ public class DeliveryOrder extends BaseEntity {
         this.courier = courier;
         this.assignedAt = now;
     }
+
+    public void startPickup() {
+        transitionTo(OrderStatus.PICKING_UP);
+    }
+
+    public void pickUp(Instant now) {
+        transitionTo(OrderStatus.PICKED_UP);
+        this.pickedUpAt = now;
+    }
+
+    public void depart() {
+        transitionTo(OrderStatus.IN_TRANSIT);
+    }
+
+    public void deliver(Instant now) {
+        transitionTo(OrderStatus.DELIVERED);
+        this.deliveredAt = now;
+        if (paymentMethod == PaymentMethod.CASH) {
+            this.paymentStatus = PaymentStatus.PAID; // kurir menerima uang tunai saat serah terima
+        }
+    }
 }
