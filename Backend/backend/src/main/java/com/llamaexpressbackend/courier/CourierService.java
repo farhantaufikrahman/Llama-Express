@@ -1,6 +1,7 @@
 package com.llamaexpressbackend.courier;
 
 import com.llamaexpressbackend.common.error.ConflictException;
+import com.llamaexpressbackend.common.error.ForbiddenException;
 import com.llamaexpressbackend.common.error.NotFoundException;
 import com.llamaexpressbackend.courier.dto.CourierProfileResponse;
 import com.llamaexpressbackend.courier.dto.LocationUpdateRequest;
@@ -28,6 +29,9 @@ public class CourierService {
     @Transactional
     public CourierProfileResponse setOnline(Long courierId, boolean online) {
         CourierProfile profile = find(courierId);
+        if (online && !profile.getUser().isActive()) {
+            throw new ForbiddenException("ACCOUNT_SUSPENDED", "Akun kamu dinonaktifkan");
+        }
         if (online) {
             profile.goOnline(); // 403 kalau belum VERIFIED
         } else {
