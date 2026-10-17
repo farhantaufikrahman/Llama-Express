@@ -1,0 +1,4 @@
+logging:
+  structured:
+    format:
+      console: ecs     # log berupa JSON satu baris → bisa dicari per field di Loki/Elasticsearch
