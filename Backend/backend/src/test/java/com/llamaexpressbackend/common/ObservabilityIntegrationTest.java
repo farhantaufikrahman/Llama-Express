@@ -51,11 +51,11 @@ class ObservabilityIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void creatingOrder_incrementsBusinessCounters() throws Exception {
-        double createdBefore = sum("llama.orders.created");
+        double createdBefore = sum("llama.orders.placed");
 
         createCashOrderAt(registerCustomer(), -6.10, 106.80);
 
-        assertThat(sum("llama.orders.created")).isEqualTo(createdBefore + 1);
+        assertThat(sum("llama.orders.placed")).isEqualTo(createdBefore + 1);
         assertThat(registry.find("llama.orders.transitions").counters()).isNotEmpty();
     }
 

@@ -29,7 +29,7 @@ public class OrderMetrics {
         String service = order.getServiceType().name();
         String vehicle = order.getVehicleType().name();
         String payment = order.getPaymentMethod().name();
-        afterCommit(() -> registry.counter("llama.orders.created",
+        afterCommit(() -> registry.counter("llama.orders.placed",
                 "service_type", service, "vehicle_type", vehicle, "payment_method", payment).increment());
     }
 

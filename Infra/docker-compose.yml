@@ -1,6 +1,18 @@
 name: llama-express
 
 services:
+  sonarqube:
+    image: sonarqube:26.10.0.133078-community
+    profiles: ["quality"]            # TIDAK ikut jalan saat "docker compose up -d" biasa
+    ports:
+      - "9000:9000"
+    environment:
+      SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"   # dev lokal: lewati cek kernel Elasticsearch di WSL2
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_logs:/opt/sonarqube/logs
+      - sonarqube_extensions:/opt/sonarqube/extensions
+    stop_grace_period: 1m
   oracle:
     image: gvenzl/oracle-free:23-slim-faststart
     container_name: llama-oracle
@@ -83,3 +95,6 @@ volumes:
   oracle-data:
   kafka-data:
   redis-data:
+  sonarqube_data:
+  sonarqube_logs:
+  sonarqube_extensions:
