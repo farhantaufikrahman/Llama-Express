@@ -1,4 +1,7 @@
 app:
+  midtrans:
+    provider: fake
+    server-key: SB-Mid-server-TEST
   admin:
     email: admin@test.local
     password: admin12345

@@ -135,21 +135,43 @@ public abstract class AbstractIntegrationTest {
                                 .andExpect(status().isNoContent());
         }
 
-        /** Order CASH dengan titik jemput di (lat, lng) → langsung SEARCHING_COURIER */
-        protected String createCashOrderAt(String customerToken, double lat, double lng) throws Exception {
+        protected String createOrderAt(String customerToken, double lat, double lng, String paymentMethod)
+                        throws Exception {
                 String body = String.format(Locale.ROOT,
                                 """
                                                 {"serviceType":"INSTANT","vehicleType":"MOTOR","itemCategory":"DOCUMENT","itemDesc":"Berkas","weightKg":1.5,
                                                  "pickup":{"address":"Titik Jemput","lat":%.6f,"lng":%.6f},
                                                  "dropoff":{"address":"Titik Antar","lat":%.6f,"lng":%.6f},
-                                                 "recipientName":"Budi","recipientPhone":"081298765432","paymentMethod":"CASH"}
+                                                 "recipientName":"Budi","recipientPhone":"081298765432","paymentMethod":"%s"}
                                                 """,
-                                lat, lng, lat - 0.01, lng);
+                                lat, lng, lat - 0.01, lng, paymentMethod);
                 MvcResult r = mockMvc.perform(post("/api/v1/orders").header(AUTHORIZATION, bearer(customerToken))
                                 .contentType(APPLICATION_JSON).content(body))
                                 .andExpect(status().isCreated()).andReturn();
                 return read(r, "$.code");
         }
+
+        protected String createCashOrderAt(String customerToken, double lat, double lng) throws Exception {
+                return createOrderAt(customerToken, lat, lng, "CASH");
+        }
+
+        /** Order CASH dengan titik jemput di (lat, lng) → langsung SEARCHING_COURIER */
+        // protected String createCashOrderAt(String customerToken, double lat, double
+        // lng) throws Exception {
+        // String body = String.format(Locale.ROOT,
+        // """
+        // {"serviceType":"INSTANT","vehicleType":"MOTOR","itemCategory":"DOCUMENT","itemDesc":"Berkas","weightKg":1.5,
+        // "pickup":{"address":"Titik Jemput","lat":%.6f,"lng":%.6f},
+        // "dropoff":{"address":"Titik Antar","lat":%.6f,"lng":%.6f},
+        // "recipientName":"Budi","recipientPhone":"081298765432","paymentMethod":"CASH"}
+        // """,
+        // lat, lng, lat - 0.01, lng);
+        // MvcResult r = mockMvc.perform(post("/api/v1/orders").header(AUTHORIZATION,
+        // bearer(customerToken))
+        // .contentType(APPLICATION_JSON).content(body))
+        // .andExpect(status().isCreated()).andReturn();
+        // return read(r, "$.code");
+        // }
 
         /**
          * Tunggu sampai kurir menerima tawaran untuk order tertentu (dispatch berjalan

@@ -1,4 +1,12 @@
 app:
+  midtrans:
+    provider: midtrans                       # "fake" untuk test
+    server-key: ${MIDTRANS_SERVER_KEY:}
+    client-key: ${MIDTRANS_CLIENT_KEY:}
+    snap-base-url: https://app.sandbox.midtrans.com   # production: https://app.midtrans.com
+    api-base-url: https://api.sandbox.midtrans.com    # production: https://api.midtrans.com
+    expiry-minutes: 15
+    notification-url: ${MIDTRANS_NOTIFICATION_URL:}
   cors:
     allowed-origins:
       - http://localhost:5173 
