@@ -27,10 +27,14 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
         StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
-        if (accessor == null || accessor.getCommand() == null) {
+        if (accessor == null) {
             return message;
         }
-        switch (accessor.getCommand()) {
+        StompCommand command = accessor.getCommand(); // dibaca SEKALI, lalu dipakai lewat variabel lokal
+        if (command == null) {
+            return message; // frame heartbeat tidak punya command
+        }
+        switch (command) {
             case CONNECT -> accessor.setUser(authenticate(accessor.getFirstNativeHeader("Authorization")));
             case SUBSCRIBE -> {
                 Authentication auth = (Authentication) accessor.getUser();

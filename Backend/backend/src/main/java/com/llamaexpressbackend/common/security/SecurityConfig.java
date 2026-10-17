@@ -38,6 +38,11 @@ public class SecurityConfig {
                         JwtAuthenticationConverter jwtAuthenticationConverter) throws Exception {
                 http
                                 .cors(Customizer.withDefaults())
+                                // CSRF dinonaktifkan dengan sengaja: API stateless, autentikasi lewat header
+                                // Authorization (JWT),
+                                // TIDAK memakai cookie sesi → browser tidak menyertakan kredensial otomatis →
+                                // CSRF tidak berlaku.
+                                // Kalau suatu saat token dipindah ke cookie, CSRF WAJIB diaktifkan kembali.
                                 .csrf(AbstractHttpConfigurer::disable)
                                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                                 .authorizeHttpRequests(auth -> auth
