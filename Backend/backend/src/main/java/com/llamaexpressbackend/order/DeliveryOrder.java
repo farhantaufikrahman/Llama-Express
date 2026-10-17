@@ -199,4 +199,24 @@ public class DeliveryOrder extends BaseEntity {
             this.paymentStatus = PaymentStatus.PAID; // kurir menerima uang tunai saat serah terima
         }
     }
+
+    public void markPaymentPending() {
+        if (paymentStatus != PaymentStatus.PAID) {
+            this.paymentStatus = PaymentStatus.PENDING;
+        }
+    }
+
+    public void markPaid() {
+        this.paymentStatus = PaymentStatus.PAID;
+    }
+
+    public void markPaymentFailed() {
+        if (paymentStatus != PaymentStatus.PAID) { // pembayaran yang sudah lunas tidak boleh "turun" status
+            this.paymentStatus = PaymentStatus.FAILED;
+        }
+    }
+
+    public void markRefunded() {
+        this.paymentStatus = PaymentStatus.REFUNDED;
+    }
 }

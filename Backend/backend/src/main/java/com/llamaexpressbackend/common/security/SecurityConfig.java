@@ -26,6 +26,7 @@ public class SecurityConfig {
                         "/api/v1/auth/**",
                         "/api/v1/track/**", // link lacak publik
                         "/ws/**", // handshake WebSocket — auth dicek di frame STOMP CONNECT
+                        "/api/v1/payments/midtrans/notification", // dipanggil server Midtrans; keamanan lewat signature
                         "/actuator/health",
                         "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html",
                         "/error"
