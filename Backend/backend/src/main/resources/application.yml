@@ -1,4 +1,7 @@
 app:
+  courier:
+    earning-share: 0.80          # kurir mendapat 80% dari ongkir (CONTOH — sesuaikan model bisnismu)
+    business-zone: Asia/Jakarta
   midtrans:
     provider: midtrans                       # "fake" untuk test
     server-key: ${MIDTRANS_SERVER_KEY:}

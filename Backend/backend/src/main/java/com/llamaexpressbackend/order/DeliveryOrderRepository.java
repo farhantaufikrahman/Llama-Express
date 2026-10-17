@@ -5,6 +5,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import com.llamaexpressbackend.courier.earnings.EarningRow;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -40,4 +42,13 @@ public interface DeliveryOrderRepository extends JpaRepository<DeliveryOrder, Lo
             where o.orderCode = :code and (o.customer.id = :userId or o.courier.id = :userId)
             """)
     boolean isParticipant(@Param("code") String code, @Param("userId") Long userId);
+
+    @Query("""
+            select new com.llamaexpressbackend.courier.earnings.EarningRow(o.deliveredAt, o.priceTotal, o.paymentMethod)
+            from DeliveryOrder o
+            where o.courier.id = :courierId and o.status = :status
+              and o.deliveredAt >= :from and o.deliveredAt < :to
+            """)
+    List<EarningRow> findEarningRows(@Param("courierId") Long courierId, @Param("status") OrderStatus status,
+            @Param("from") Instant from, @Param("to") Instant to);
 }
