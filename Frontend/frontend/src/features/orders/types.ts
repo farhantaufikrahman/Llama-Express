@@ -1,11 +1,23 @@
 export type OrderStatus =
-  | 'CREATED' | 'SEARCHING_COURIER' | 'ASSIGNED' | 'PICKING_UP'
-  | 'PICKED_UP' | 'IN_TRANSIT' | 'DELIVERED' | 'CANCELLED' | 'FAILED';
-export type ServiceType = 'INSTANT' | 'SAME_DAY';
-export type VehicleType = 'MOTOR' | 'CAR';
-export type ItemCategory = 'DOCUMENT' | 'FOOD' | 'GOODS';
-export type PaymentMethod = 'CASH' | 'MIDTRANS';
-export type PaymentStatus = 'UNPAID' | 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
+  | "CREATED"
+  | "SEARCHING_COURIER"
+  | "ASSIGNED"
+  | "PICKING_UP"
+  | "PICKED_UP"
+  | "IN_TRANSIT"
+  | "DELIVERED"
+  | "CANCELLED"
+  | "FAILED";
+export type ServiceType = "INSTANT" | "SAME_DAY";
+export type VehicleType = "MOTOR" | "CAR";
+export type ItemCategory = "DOCUMENT" | "FOOD" | "GOODS";
+export type PaymentMethod = "CASH" | "MIDTRANS";
+export type PaymentStatus =
+  | "UNPAID"
+  | "PENDING"
+  | "PAID"
+  | "FAILED"
+  | "REFUNDED";
 
 export interface Location {
   address: string;
