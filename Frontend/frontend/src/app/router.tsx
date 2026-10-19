@@ -37,6 +37,21 @@ const CourierJobPage = lazy(
 const CourierEarningsPage = lazy(
   () => import("../features/courier/pages/CourierEarningsPage"),
 );
+const AdminOrdersPage = lazy(
+  () => import("../features/admin/pages/AdminOrdersPage"),
+);
+const AdminOrderDetailPage = lazy(
+  () => import("../features/admin/pages/AdminOrderDetailPage"),
+);
+const AdminCouriersPage = lazy(
+  () => import("../features/admin/pages/AdminCouriersPage"),
+);
+const AdminTariffsPage = lazy(
+  () => import("../features/admin/pages/AdminTariffsPage"),
+);
+const AdminUsersPage = lazy(
+  () => import("../features/admin/pages/AdminUsersPage"),
+);
 
 export const router = createBrowserRouter([
   {
@@ -102,7 +117,17 @@ export const router = createBrowserRouter([
         children: [
           {
             element: <AdminLayout />,
-            children: [{ path: "/admin", element: <AdminDashboardPage /> }],
+            children: [
+              { path: "/admin", element: <AdminDashboardPage /> },
+              { path: "/admin/orders", element: <AdminOrdersPage /> },
+              {
+                path: "/admin/orders/:code",
+                element: <AdminOrderDetailPage />,
+              },
+              { path: "/admin/couriers", element: <AdminCouriersPage /> },
+              { path: "/admin/tariffs", element: <AdminTariffsPage /> },
+              { path: "/admin/users", element: <AdminUsersPage /> },
+            ],
           },
         ],
       },

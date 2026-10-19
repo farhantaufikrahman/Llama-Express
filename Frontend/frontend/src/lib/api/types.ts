@@ -1,4 +1,4 @@
-export type Role = 'CUSTOMER' | 'COURIER' | 'ADMIN';
+export type Role = "CUSTOMER" | "COURIER" | "ADMIN";
 
 export interface User {
   id: number;
@@ -11,11 +11,14 @@ export interface User {
 export interface TokenResponse {
   accessToken: string;
   refreshToken: string;
-  tokenType: 'Bearer';
+  tokenType: "Bearer";
   expiresIn: number;
 }
 
 export interface PageResponse<T> {
   content: T[];
+  page: number;
+  size: number;
   totalElements: number;
+  totalPages: number;
 }
