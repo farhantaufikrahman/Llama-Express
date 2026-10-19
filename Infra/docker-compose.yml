@@ -5,11 +5,11 @@ services:
     build:
       context: ../Backend/backend
     image: llama-express-backend:local
-    profiles: ["app"]                      # tidak ikut "docker compose up -d" biasa (saat dev, backend jalan di laptop)
+    profiles: ["app"] # tidak ikut "docker compose up -d" biasa (saat dev, backend jalan di laptop)
     ports:
       - "8080:8080"
     env_file:
-      - ../Backend/backend/.env            # rahasia diberikan saat RUNTIME, bukan dipanggang ke image
+      - ../Backend/backend/.env # rahasia diberikan saat RUNTIME, bukan dipanggang ke image
     environment:
       # alamat antar-container memakai NAMA SERVICE, bukan localhost
       SPRING_DATASOURCE_URL: jdbc:oracle:thin:@//oracle:1521/FREEPDB1
@@ -19,15 +19,31 @@ services:
       - oracle
       - kafka
       - redis
-    restart: on-failure                    # Oracle butuh ±1 menit untuk siap → backend mencoba lagi sampai berhasil
-    stop_grace_period: 30s                 # beri waktu graceful shutdown (timeout-per-shutdown-phase 20s)
+    restart: on-failure # Oracle butuh ±1 menit untuk siap → backend mencoba lagi sampai berhasil
+    stop_grace_period: 30s # beri waktu graceful shutdown (timeout-per-shutdown-phase 20s)
+
+  frontend:
+    build:
+      context: ../Frontend/frontend
+      args:
+        VITE_MIDTRANS_CLIENT_KEY: ${MIDTRANS_CLIENT_KEY:?isi MIDTRANS_CLIENT_KEY di Infra/.env}
+    image: llama-express-frontend:local
+    profiles: ["app"]
+    environment:
+      BACKEND_URL: http://backend:8080
+    ports:
+      - "8088:8080"
+    depends_on:
+      backend:
+        condition: service_started
+    restart: unless-stopped
   sonarqube:
     image: sonarqube:26.10.0.133078-community
-    profiles: ["quality"]            # TIDAK ikut jalan saat "docker compose up -d" biasa
+    profiles: ["quality"] # TIDAK ikut jalan saat "docker compose up -d" biasa
     ports:
       - "9000:9000"
     environment:
-      SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"   # dev lokal: lewati cek kernel Elasticsearch di WSL2
+      SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true" # dev lokal: lewati cek kernel Elasticsearch di WSL2
     volumes:
       - sonarqube_data:/opt/sonarqube/data
       - sonarqube_logs:/opt/sonarqube/logs
