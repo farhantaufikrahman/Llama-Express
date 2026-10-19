@@ -1,0 +1,104 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  labels:
+    app.kubernetes.io/name: backend
+spec:
+  # 1 replika dulu: STOMP simple broker menyimpan langganan WebSocket di MEMORI pod.
+  # Dengan 2 pod, klien yang terhubung ke pod A tidak menerima pesan yang diterbitkan pod B.
+  # Scale-out butuh perubahan desain (dibahas di K5).
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1 # buat pod baru dulu...
+      maxUnavailable: 0 # ...pod lama baru dimatikan setelah pod baru READY → zero downtime
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: backend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: backend
+    spec:
+      # Harus > preStop (10s) + spring.lifecycle.timeout-per-shutdown-phase (default 30s)
+      terminationGracePeriodSeconds: 45
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001 # UID numerik eksplisit (kubelet tidak bisa memverifikasi user bernama "app")
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: backend
+          image: llama-express/backend # nama generik; tag ditentukan overlay (images:)
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: backend-config
+            - secretRef:
+                name: backend-secrets # JWT_SECRET, ADMIN_*, CLOUDINARY_URL, MIDTRANS_*_KEY
+          env:
+            # Kredensial DB diambil dari Secret ORACLE → satu sumber kebenaran, tidak bisa "tidak sinkron"
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: oracle-credentials
+                  key: APP_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: oracle-credentials
+                  key: APP_USER_PASSWORD
+          resources:
+            requests:
+              cpu: 500m
+              memory: 768Mi
+            limits:
+              memory: 1Gi
+          # Start pertama menjalankan Flyway (semua migrasi) di Oracle kosong → beri hingga 3 menit
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 5
+            failureThreshold: 36
+          # Readiness = db + redis (grup yang kita definisikan di langkah 12)
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          # Liveness TANPA cek DB (langkah 12): DB down ≠ backend perlu di-restart
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          lifecycle:
+            # Saat pod dihentikan, Kubernetes SECARA PARALEL mengirim SIGTERM dan menghapus pod dari Service.
+            # Jeda 10 detik memberi waktu semua node berhenti mengirim request baru ke pod ini,
+            # baru kemudian Spring mulai graceful shutdown (menyelesaikan request yang sedang berjalan).
+            preStop:
+              exec:
+                command: ["sleep", "10"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp # Tomcat & upload multipart (foto bukti) butuh direktori sementara yang bisa ditulis
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 256Mi
