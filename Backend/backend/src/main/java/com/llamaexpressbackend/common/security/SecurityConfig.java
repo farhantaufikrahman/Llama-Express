@@ -62,7 +62,9 @@ public class SecurityConfig {
                 CorsConfiguration config = new CorsConfiguration();
                 config.setAllowedOriginPatterns(props.allowedOrigins());
                 config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-                config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+                config.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Request-Id"));
+                config.setExposedHeaders(
+                                List.of("X-Request-Id", "Retry-After", "X-RateLimit-Remaining", "Content-Disposition"));
                 config.setMaxAge(3600L);
                 UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
                 source.registerCorsConfiguration("/**", config);
