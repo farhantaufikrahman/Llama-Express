@@ -31,6 +31,12 @@ const NotFoundPage = lazy(() => import("./NotFoundPage"));
 const PublicTrackingPage = lazy(
   () => import("../features/tracking/pages/PublicTrackingPage"),
 );
+const CourierJobPage = lazy(
+  () => import("../features/courier/pages/CourierJobPage"),
+);
+const CourierEarningsPage = lazy(
+  () => import("../features/courier/pages/CourierEarningsPage"),
+);
 
 export const router = createBrowserRouter([
   {
@@ -84,10 +90,9 @@ export const router = createBrowserRouter([
       {
         element: <RequireRole roles={["COURIER"]} />,
         children: [
-          {
-            element: <MainLayout />,
-            children: [{ path: "/courier", element: <CourierHomePage /> }],
-          },
+          { path: "/courier", element: <CourierHomePage /> },
+          { path: "/courier/job", element: <CourierJobPage /> },
+          { path: "/courier/earnings", element: <CourierEarningsPage /> },
         ],
       },
 
