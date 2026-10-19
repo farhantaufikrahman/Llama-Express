@@ -1,0 +1,13 @@
+# Default Nginx membatasi body request 1 MB → upload foto bukti pengantaran bisa ditolak (413).
+# Samakan dengan client_max_body_size di Nginx frontend (10m).
+apiVersion: gateway.nginx.org/v1alpha1
+kind: ClientSettingsPolicy
+metadata:
+  name: llama-client-settings
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: Gateway
+    name: llama-gateway
+  body:
+    maxSize: 10m

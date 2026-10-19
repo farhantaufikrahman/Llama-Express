@@ -9,7 +9,9 @@ images:
   - name: llama-express/backend
     newName: llama-express-backend
     newTag: local
-
+  - name: llama-express/frontend
+    newName: llama-express-frontend
+    newTag: local
 secretGenerator:
   - name: oracle-credentials
     namespace: llama
