@@ -60,8 +60,9 @@ const schema = z.object({
   notes: z.string().trim().max(500, "Maksimal 500 karakter"),
   paymentMethod: z.enum(["CASH", "MIDTRANS"]),
 });
-type Values = z.infer<typeof schema>;
 type PointKind = "pickup" | "dropoff";
+type OrderFormInput = z.input<typeof schema>; // nilai saat user mengisi (boleh null)
+type OrderFormValues = z.output<typeof schema>; // nilai setelah lolos validasi (pasti terisi)
 
 /** Titik dianggap ada HANYA kalau koordinatnya angka valid — pertahanan terakhir sebelum data masuk ke Leaflet */
 const isPoint = (v: Location | null | undefined): v is Location =>
@@ -73,7 +74,7 @@ export default function NewOrderPage() {
   const [active, setActive] = useState<PointKind>("pickup");
   const [banner, setBanner] = useState<string | null>(null);
 
-  const form = useForm<Values>({
+  const form = useForm<OrderFormInput, unknown, OrderFormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       pickup: null,
