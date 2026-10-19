@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis
+  labels:
+    app.kubernetes.io/name: redis
+spec:
+  serviceName: redis
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: redis
+    spec:
+      securityContext: # berjalan sebagai user "redis" (uid 999), bukan root
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999 # volume dimiliki grup 999 → redis bisa menulis
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: redis
+          image: redis:8-alpine
+          args:
+            - --appendonly
+            - "yes" # AOF: setiap tulis dicatat → data selamat saat pod restart
+            - --save
+            - "" # matikan snapshot RDB (AOF sudah cukup)
+          ports:
+            - name: redis
+              containerPort: 6379
+          resources:
+            requests: # jaminan minimum → dipakai scheduler menempatkan pod
+              cpu: 50m
+              memory: 64Mi
+            limits: # batas maksimum → melewati memory limit = pod di-OOMKill
+              memory: 256Mi
+          readinessProbe: # "siap menerima koneksi?" → belum siap = dikeluarkan dari Service
+            exec:
+              command: ["redis-cli", "ping"]
+            periodSeconds: 5
+            timeoutSeconds: 2
+          livenessProbe: # "masih hidup?" → gagal berulang = container di-restart
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true # hanya /data yang bisa ditulis
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: data
+              mountPath: /data
+  volumeClaimTemplates: # tiap pod StatefulSet mendapat PVC sendiri: data-redis-0
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
