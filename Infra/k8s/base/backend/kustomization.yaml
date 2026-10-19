@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - service.yaml
+  - deployment.yaml
+
+# Konfigurasi NON-rahasia. Nama env var mengikuti relaxed binding Spring:
+# SPRING_DATASOURCE_URL → spring.datasource.url, dst. (env var mengalahkan application.yml)
+configMapGenerator:
+  - name: backend-config
+    literals:
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_DATASOURCE_URL=jdbc:oracle:thin:@//oracle:1521/FREEPDB1
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PORT=6379
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - MIDTRANS_NOTIFICATION_URL=
+      # Heap = 75% dari memory limit container; OOM → JVM keluar (lalu di-restart) daripada "zombie"
+      - JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError
