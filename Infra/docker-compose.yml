@@ -1,6 +1,21 @@
 name: llama-express
 
 services:
+  jenkins:
+    build: ./jenkins
+    image: llama-jenkins:local
+    container_name: llama-jenkins
+    profiles: ["ci"]
+    ports:
+      - "8090:8080" # UI Jenkins → http://localhost:8090
+    group_add:
+      - "0" # akses /var/run/docker.sock (milik grup root di Docker Desktop)
+    environment:
+      JAVA_OPTS: "-Xmx1g"
+    volumes:
+      - jenkins_home:/var/jenkins_home # konfigurasi, job, credentials, riwayat build bertahan
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
   backend:
     build:
       context: ../Backend/backend
@@ -134,3 +149,4 @@ volumes:
   sonarqube_data:
   sonarqube_logs:
   sonarqube_extensions:
+  jenkins_home:
