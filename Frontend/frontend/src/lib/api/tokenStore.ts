@@ -1,4 +1,4 @@
-import type { TokenResponse } from './types';
+import type { TokenResponse } from "./types";
 
 /**
  * Access token: HANYA di memori (hilang saat reload, tidak bisa dicuri dari storage).
@@ -8,7 +8,7 @@ import type { TokenResponse } from './types';
  * refresh token rotation + reuse detection (langkah 4). Opsi yang lebih kuat adalah cookie HttpOnly —
  * tapi itu WAJIB disertai proteksi CSRF (ingat temuan SonarQube di langkah 13).
  */
-const REFRESH_KEY = 'llama.refreshToken';
+const REFRESH_KEY = "llama.refreshToken";
 let accessToken: string | null = null;
 const expiredListeners = new Set<() => void>();
 
@@ -20,12 +20,31 @@ function safeStorage<T>(fn: () => T, fallback: T): T {
   }
 }
 
+function jwtExpiresAt(token: string): number | null {
+  try {
+    const payload = JSON.parse(
+      atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")),
+    );
+    return typeof payload.exp === "number" ? payload.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+}
+
 export const tokenStore = {
+  accessExpiresWithin(seconds: number): boolean {
+    if (!accessToken) return true;
+    const exp = jwtExpiresAt(accessToken);
+    return exp === null || exp - Date.now() < seconds * 1000;
+  },
   getAccess: () => accessToken,
   getRefresh: () => safeStorage(() => localStorage.getItem(REFRESH_KEY), null),
-  set(tokens: Pick<TokenResponse, 'accessToken' | 'refreshToken'>) {
+  set(tokens: Pick<TokenResponse, "accessToken" | "refreshToken">) {
     accessToken = tokens.accessToken;
-    safeStorage(() => localStorage.setItem(REFRESH_KEY, tokens.refreshToken), undefined);
+    safeStorage(
+      () => localStorage.setItem(REFRESH_KEY, tokens.refreshToken),
+      undefined,
+    );
   },
   clear() {
     accessToken = null;
