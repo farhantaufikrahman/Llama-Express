@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react';
 import type { User } from '../../lib/api/types';
+import type { CourierRegisterPayload, CustomerRegisterPayload } from './api';
 
 export type AuthStatus = 'loading' | 'authenticated' | 'anonymous';
 
@@ -18,4 +19,15 @@ export function useAuth(): AuthContextValue {
     throw new Error('useAuth harus dipakai di dalam <AuthProvider>');
   }
   return ctx;
+}
+
+export interface AuthContextValue {
+  status: AuthStatus;
+  user: User | null;
+  login: (email: string, password: string) => Promise<User>;
+  register: (
+    request: { kind: 'customer'; payload: CustomerRegisterPayload } | { kind: 'courier'; payload: CourierRegisterPayload },
+  ) => Promise<User>;
+  updateUser: (user: User) => void;
+  logout: () => Promise<void>;
 }
