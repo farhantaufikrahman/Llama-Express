@@ -1,0 +1,6 @@
+# Namespace = "folder" logis di cluster: semua resource Llama Express terkumpul di sini,
+# terpisah dari kube-system dll. Hapus namespace = hapus semuanya sekaligus.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: llama
