@@ -1,0 +1,163 @@
+import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link, useParams } from 'react-router';
+import { Alert } from '../../../components/Alert';
+import { Button } from '../../../components/Button';
+import { isApiError } from '../../../lib/api/errors';
+import { formatDateTime, formatRupiah } from '../../../lib/format';
+import { PickMap } from '../../map/PickMap';
+import { orderApi, orderKeys } from '../api';
+import { StatusBadge } from '../components/StatusBadge';
+import { ACTIVE_STATUSES, CANCELLABLE_STATUSES, ORDER_STATUS } from '../status';
+import type { Order } from '../types';
+
+export default function OrderDetailPage() {
+  const { code = '' } = useParams();
+  const { data: order, isPending, isError, error } = useQuery({
+    queryKey: orderKeys.detail(code),
+    queryFn: ({ signal }) => orderApi.detail(code, signal),
+    // Sementara (sampai WebSocket di F5): segarkan tiap 10 detik selama order masih berjalan
+    refetchInterval: (q) => (q.state.data && ACTIVE_STATUSES.has(q.state.data.status) ? 10_000 : false),
+  });
+
+  if (isPending) return <p className="text-ink-muted">Memuat…</p>;
+  if (isError) {
+    return isApiError(error) && error.status === 404
+      ? <Alert>Order tidak ditemukan.</Alert>
+      : <Alert>{error.message}</Alert>;
+  }
+
+  return (
+    <article className="flex flex-col gap-4">
+      <Link to="/orders" className="text-sm font-bold text-brand-blue hover:underline">← Order saya</Link>
+      <header className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-2xl font-extrabold tracking-tight">{order.code}</h1>
+        <StatusBadge status={order.status} />
+      </header>
+
+      {order.status === 'CREATED' && order.paymentMethod === 'MIDTRANS' && (
+        <Alert kind="info">Order akan dicarikan kurir setelah pembayaran berhasil. (Tombol bayar hadir di langkah F4.)</Alert>
+      )}
+
+      <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
+        <PickMap
+          showRoute
+          className="h-72 lg:h-full lg:min-h-80"
+          markers={[
+            { id: 'pickup', kind: 'pickup', position: order.pickup, title: 'Titik jemput' },
+            { id: 'dropoff', kind: 'dropoff', position: order.dropoff, title: 'Titik antar' },
+          ]}
+        />
+        <div className="flex flex-col gap-3">
+          {order.verificationCode && ACTIVE_STATUSES.has(order.status) && <VerificationCard code={order.verificationCode} />}
+          <TrackingLinkCard token={order.trackingToken} />
+          <Summary order={order} />
+        </div>
+      </div>
+
+      <Timeline order={order} />
+      {CANCELLABLE_STATUSES.has(order.status) && <CancelSection code={order.code} />}
+    </article>
+  );
+}
+
+function VerificationCard({ code }: { code: string }) {
+  return (
+    <div className="rounded-2xl bg-white p-4">
+      <p className="text-xs font-semibold text-ink-muted">Kode serah terima — berikan ke PENERIMA, bukan ke kurir</p>
+      <p className="mt-1 font-mono text-4xl font-extrabold tracking-[0.4em] text-navy-900">{code}</p>
+    </div>
+  );
+}
+
+function TrackingLinkCard({ token }: { token: string }) {
+  const [copied, setCopied] = useState(false);
+  const url = `${window.location.origin}/track/${token}`;
+  const copy = async () => {
+    await navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-2xl bg-white p-4">
+      <div className="min-w-0">
+        <p className="text-xs font-semibold text-ink-muted">Link lacak untuk penerima</p>
+        <p className="truncate text-sm">{url}</p>
+      </div>
+      <button onClick={copy} className="shrink-0 rounded-lg bg-cream px-3 py-2 text-sm font-bold">{copied ? 'Tersalin ✓' : 'Salin'}</button>
+    </div>
+  );
+}
+
+function Summary({ order }: { order: Order }) {
+  const rows: [string, string][] = [
+    ['Jemput', order.pickup.address],
+    ['Antar', `${order.dropoff.address} · ${order.recipientName} (${order.recipientPhone})`],
+    ['Layanan', `${order.serviceType === 'INSTANT' ? 'Instant' : 'Same Day'} · ${order.vehicleType === 'MOTOR' ? 'Motor' : 'Mobil'}`],
+    ['Jarak', `${(order.distanceMeters / 1000).toLocaleString('id-ID', { maximumFractionDigits: 1 })} km`],
+    ['Pembayaran', `${order.paymentMethod === 'CASH' ? 'Tunai' : 'Online'} · ${order.paymentStatus}`],
+  ];
+  return (
+    <dl className="flex flex-col gap-2.5 rounded-2xl bg-white p-4 text-sm">
+      {rows.map(([k, v]) => (
+        <div key={k} className="grid grid-cols-[96px_1fr] gap-2">
+          <dt className="font-semibold text-ink-muted">{k}</dt>
+          <dd>{v}</dd>
+        </div>
+      ))}
+      <div className="mt-1 flex items-center justify-between border-t border-line pt-3">
+        <dt className="font-semibold text-ink-muted">Total</dt>
+        <dd className="text-xl font-extrabold">{formatRupiah(order.priceTotal)}</dd>
+      </div>
+    </dl>
+  );
+}
+
+function Timeline({ order }: { order: Order }) {
+  return (
+    <section className="rounded-2xl bg-white p-5">
+      <h2 className="mb-3 text-lg font-extrabold">Riwayat status</h2>
+      <ol className="relative flex flex-col gap-4 border-l-2 border-line pl-5">
+        {[...order.timeline].reverse().map((t, i) => (
+          <li key={`${t.status}-${t.at}`} className="relative">
+            <span className={`absolute -left-[27px] top-1 size-3 rounded-full ${i === 0 ? 'bg-navy-900' : 'bg-line'}`} />
+            <p className="text-sm font-bold">{ORDER_STATUS[t.status].label}</p>
+            <p className="text-xs text-ink-muted">{formatDateTime(t.at)}{t.note ? ` · ${t.note}` : ''}</p>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+function CancelSection({ code }: { code: string }) {
+  const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState('');
+  const cancel = useMutation({
+    mutationFn: () => orderApi.cancel(code, reason.trim()),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(orderKeys.detail(code), updated); // tampilkan hasil langsung tanpa request ulang
+      queryClient.invalidateQueries({ queryKey: orderKeys.list() });
+      setOpen(false);
+    },
+  });
+
+  if (!open) {
+    return <Button variant="secondary" className="self-start text-danger" onClick={() => setOpen(true)}>Batalkan order</Button>;
+  }
+  return (
+    <section className="flex flex-col gap-3 rounded-2xl bg-white p-5">
+      <label htmlFor="cancel-reason" className="text-sm font-bold">Alasan pembatalan</label>
+      <input id="cancel-reason" value={reason} maxLength={255} onChange={(e) => setReason(e.target.value)}
+             className="h-12 rounded-xl border-[1.5px] border-line px-3.5 outline-none focus:border-brand-blue" />
+      {cancel.isError && <Alert>{cancel.error.message}</Alert>}
+      <div className="flex gap-2">
+        <Button variant="danger" disabled={!reason.trim() || cancel.isPending} onClick={() => cancel.mutate()}>
+          {cancel.isPending ? 'Membatalkan…' : 'Ya, batalkan'}
+        </Button>
+        <Button variant="secondary" onClick={() => setOpen(false)}>Kembali</Button>
+      </div>
+    </section>
+  );
+}
