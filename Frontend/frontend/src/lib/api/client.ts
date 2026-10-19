@@ -7,41 +7,82 @@ type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 interface RequestOptions {
   method?: Method;
-  body?: unknown; // objek → JSON; FormData → multipart (upload foto bukti)
-  auth?: boolean; // default true: sertakan Bearer token
-  signal?: AbortSignal; // TanStack Query membatalkan request yang sudah tidak dibutuhkan
+  body?: unknown;
+  auth?: boolean;
+  signal?: AbortSignal;
+  accept?: string; // default application/json; CSV memakai text/csv
 }
 
-/** Satu-satunya pintu ke backend — padanan RestClient/WebClient di Spring atau http.Client di Go */
-export async function api<T>(
+async function request(
   path: string,
-  options: RequestOptions = {},
-): Promise<T> {
+  options: RequestOptions,
+): Promise<Response> {
   const useAuth = options.auth !== false;
   let response = await send(
     path,
     options,
     useAuth ? tokenStore.getAccess() : null,
   );
-
-  // Access token kedaluwarsa (15 menit) → refresh SEKALI, lalu ulangi request yang sama
   if (response.status === 401 && useAuth && tokenStore.getRefresh()) {
-    const refreshed = await refreshSession();
-    if (refreshed) {
+    if (await refreshSession()) {
       response = await send(path, options, tokenStore.getAccess());
     }
   }
-  return parse<T>(response);
+  return response;
+}
+
+/** Satu-satunya pintu ke backend — padanan RestClient/WebClient di Spring atau http.Client di Go */
+// export async function api<T>(
+//   path: string,
+//   options: RequestOptions = {},
+// ): Promise<T> {
+//   const useAuth = options.auth !== false;
+//   let response = await send(
+//     path,
+//     options,
+//     useAuth ? tokenStore.getAccess() : null,
+//   );
+
+//   // Access token kedaluwarsa (15 menit) → refresh SEKALI, lalu ulangi request yang sama
+//   if (response.status === 401 && useAuth && tokenStore.getRefresh()) {
+//     const refreshed = await refreshSession();
+//     if (refreshed) {
+//       response = await send(path, options, tokenStore.getAccess());
+//     }
+//   }
+//   return parse<T>(response);
+// }
+
+export async function api<T>(
+  path: string,
+  options: RequestOptions = {},
+): Promise<T> {
+  return parse<T>(await request(path, options));
+}
+
+export async function apiDownload(
+  path: string,
+  options: RequestOptions = {},
+): Promise<{ blob: Blob; filename: string | null }> {
+  const response = await request(path, { accept: "*/*", ...options });
+  if (!response.ok) {
+    await parse(response); // melempar ApiError dengan pesan dari ProblemDetail
+  }
+  // Content-Disposition harus di-"expose" lewat CORS (sudah kita tambahkan di F1.7)
+  const match = /filename="?([^";]+)"?/i.exec(
+    response.headers.get("Content-Disposition") ?? "",
+  );
+  return { blob: await response.blob(), filename: match?.[1] ?? null };
 }
 
 function send(path: string, options: RequestOptions, token: string | null) {
   const headers = new Headers({
-    Accept: "application/json",
+    Accept: options.accept ?? "application/json",
     "X-Request-Id": crypto.randomUUID(),
   });
   let body: BodyInit | undefined;
   if (options.body instanceof FormData) {
-    body = options.body; // JANGAN set Content-Type — browser menambahkan boundary multipart sendiri
+    body = options.body;
   } else if (options.body !== undefined) {
     headers.set("Content-Type", "application/json");
     body = JSON.stringify(options.body);
