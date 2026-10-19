@@ -1,0 +1,11 @@
+# Titik awal: TOLAK semua traffic MASUK ke semua pod di namespace ini.
+# Policy lain kemudian membuka jalur yang memang dibutuhkan (allow-list, bukan block-list).
+# Traffic KELUAR (egress) tetap bebas: backend butuh DNS, Midtrans, Cloudinary.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress

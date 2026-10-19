@@ -1,0 +1,15 @@
+# NGF otomatis membuat Deployment + Service (LoadBalancer) bernama "llama-gateway-nginx" untuk Gateway ini.
+# Docker Desktop memetakan Service LoadBalancer ke localhost.
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: llama-gateway
+spec:
+  gatewayClassName: nginx
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80 # ganti ke 8000 jika port 80 di Windows sudah terpakai
+      allowedRoutes:
+        namespaces:
+          from: Same # hanya HTTPRoute di namespace "llama" yang boleh menempel ke Gateway ini

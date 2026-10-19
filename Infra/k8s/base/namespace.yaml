@@ -1,6 +1,10 @@
-# Namespace = "folder" logis di cluster: semua resource Llama Express terkumpul di sini,
-# terpisah dari kube-system dll. Hapus namespace = hapus semuanya sekaligus.
 apiVersion: v1
 kind: Namespace
 metadata:
   name: llama
+  labels:
+    # Tolak pod yang jelas berbahaya (privileged, hostNetwork, hostPath, ...)
+    pod-security.kubernetes.io/enforce: baseline
+    # Pod yang tidak memenuhi "restricted" tetap boleh, tapi kubectl menampilkan peringatan & tercatat di audit log
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted
