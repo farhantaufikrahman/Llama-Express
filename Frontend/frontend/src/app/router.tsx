@@ -105,9 +105,14 @@ export const router = createBrowserRouter([
       {
         element: <RequireRole roles={["COURIER"]} />,
         children: [
-          { path: "/courier", element: <CourierHomePage /> },
-          { path: "/courier/job", element: <CourierJobPage /> },
-          { path: "/courier/earnings", element: <CourierEarningsPage /> },
+          {
+            element: <MainLayout />,
+            children: [
+              { path: "/courier", element: <CourierHomePage /> },
+              { path: "/courier/job", element: <CourierJobPage /> },
+              { path: "/courier/earnings", element: <CourierEarningsPage /> },
+            ],
+          },
         ],
       },
 
