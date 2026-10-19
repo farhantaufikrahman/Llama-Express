@@ -3,47 +3,87 @@ import { createBrowserRouter } from 'react-router';
 import { GuestOnly, RequireRole, RoleRedirect } from '../features/auth/guards';
 import { MainLayout } from '../layouts/MainLayout';
 import { AdminLayout } from '../layouts/AdminLayout';
+import { RouteErrorPage } from './RouteErrorPage';
 
+// Code splitting per halaman: kode (dan library seperti Leaflet) baru diunduh saat halamannya dibuka
 const LoginPage = lazy(() => import('../features/auth/pages/LoginPage'));
 const RegisterPage = lazy(() => import('../features/auth/pages/RegisterPage'));
 const AccountPage = lazy(() => import('../features/account/pages/AccountPage'));
 const AddressesPage = lazy(() => import('../features/addresses/pages/AddressesPage'));
 const MyOrdersPage = lazy(() => import('../features/orders/pages/MyOrdersPage'));
+const NewOrderPage = lazy(() => import('../features/orders/pages/NewOrderPage'));
+const OrderDetailPage = lazy(() => import('../features/orders/pages/OrderDetailPage'));
 const CourierHomePage = lazy(() => import('../features/courier/pages/CourierHomePage'));
 const AdminDashboardPage = lazy(() => import('../features/admin/pages/AdminDashboardPage'));
 const NotFoundPage = lazy(() => import('./NotFoundPage'));
 
 export const router = createBrowserRouter([
-  { path: '/', element: <RoleRedirect /> },
   {
-    element: <GuestOnly />,
+    // Satu induk untuk semua route → error apa pun di halaman mana pun ditangkap RouteErrorPage
+    errorElement: <RouteErrorPage />,
     children: [
-      { path: '/login', element: <LoginPage /> },
-      { path: '/register', element: <RegisterPage mode="customer" /> },
-      { path: '/register/courier', element: <RegisterPage mode="courier" /> },
+      { path: '/', element: <RoleRedirect /> },
+
+      // ---------- Publik (hanya untuk yang BELUM login) ----------
+      {
+        element: <GuestOnly />,
+        children: [
+          { path: '/login', element: <LoginPage /> },
+          { path: '/register', element: <RegisterPage mode="customer" /> },
+          { path: '/register/courier', element: <RegisterPage mode="courier" /> },
+        ],
+      },
+
+      // ---------- Customer & kurir ----------
+      {
+        element: <RequireRole roles={['CUSTOMER', 'COURIER']} />,
+        children: [
+          {
+            element: <MainLayout />,
+            children: [{ path: '/account', element: <AccountPage /> }],
+          },
+        ],
+      },
+
+      // ---------- Customer ----------
+      {
+        element: <RequireRole roles={['CUSTOMER']} />,
+        children: [
+          {
+            element: <MainLayout />,
+            children: [
+              { path: '/orders', element: <MyOrdersPage /> },
+              { path: '/orders/new', element: <NewOrderPage /> }, // path statis menang atas :code
+              { path: '/orders/:code', element: <OrderDetailPage /> },
+              { path: '/addresses', element: <AddressesPage /> },
+            ],
+          },
+        ],
+      },
+
+      // ---------- Kurir ----------
+      {
+        element: <RequireRole roles={['COURIER']} />,
+        children: [
+          {
+            element: <MainLayout />,
+            children: [{ path: '/courier', element: <CourierHomePage /> }],
+          },
+        ],
+      },
+
+      // ---------- Admin ----------
+      {
+        element: <RequireRole roles={['ADMIN']} />,
+        children: [
+          {
+            element: <AdminLayout />,
+            children: [{ path: '/admin', element: <AdminDashboardPage /> }],
+          },
+        ],
+      },
+
+      { path: '*', element: <NotFoundPage /> },
     ],
   },
-  {
-    element: <RequireRole roles={['CUSTOMER', 'COURIER']} />,
-    children: [{ element: <MainLayout />, children: [{ path: '/account', element: <AccountPage /> }] }],
-  },
-  {
-    element: <RequireRole roles={['CUSTOMER']} />,
-    children: [{
-      element: <MainLayout />,
-      children: [
-        { path: '/orders', element: <MyOrdersPage /> },
-        { path: '/addresses', element: <AddressesPage /> },
-      ],
-    }],
-  },
-  {
-    element: <RequireRole roles={['COURIER']} />,
-    children: [{ element: <MainLayout />, children: [{ path: '/courier', element: <CourierHomePage /> }] }],
-  },
-  {
-    element: <RequireRole roles={['ADMIN']} />,
-    children: [{ element: <AdminLayout />, children: [{ path: '/admin', element: <AdminDashboardPage /> }] }],
-  },
-  { path: '*', element: <NotFoundPage /> },
 ]);
