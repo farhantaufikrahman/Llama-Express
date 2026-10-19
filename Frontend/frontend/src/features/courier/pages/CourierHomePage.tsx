@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../../lib/api/client';
+import { Alert } from '../../../components/Alert';
 
 interface CourierProfile {
   fullName: string;
@@ -20,16 +21,22 @@ export default function CourierHomePage() {
   if (isPending) return <p className="text-ink-muted">Memuat…</p>;
   if (isError) return <p role="alert" className="text-danger">{error.message}</p>;
 
-  return (
-    <section className="flex flex-col gap-4">
-      <h1 className="text-2xl font-extrabold tracking-tight">Halo, {data.fullName}</h1>
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Stat label="Kendaraan" value={`${data.vehicleType} · ${data.plateNumber}`} />
-        <Stat label="Verifikasi" value={data.verificationStatus} />
-        <Stat label="Status" value={data.online ? 'Online' : 'Offline'} />
-      </div>
-    </section>
-  );
+return (
+  <section className="flex flex-col gap-4">
+    <h1 className="text-2xl font-extrabold tracking-tight">Halo, {data.fullName}</h1>
+    {data.verificationStatus === 'PENDING' && (
+      <Alert kind="info">Akunmu sedang diverifikasi admin. Kamu bisa mulai menerima order setelah disetujui.</Alert>
+    )}
+    {data.verificationStatus === 'REJECTED' && (
+      <Alert>Verifikasi akun ditolak. Hubungi admin untuk informasi lebih lanjut.</Alert>
+    )}
+    <div className="grid gap-3 sm:grid-cols-3">
+      <Stat label="Kendaraan" value={`${data.vehicleType === 'MOTOR' ? 'Motor' : 'Mobil'} · ${data.plateNumber}`} />
+      <Stat label="Verifikasi" value={data.verificationStatus} />
+      <Stat label="Status" value={data.online ? 'Online' : 'Offline'} />
+    </div>
+  </section>
+);
 }
 
 function Stat({ label, value }: { label: string; value: string }) {

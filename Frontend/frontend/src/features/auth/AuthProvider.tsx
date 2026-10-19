@@ -2,9 +2,11 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 import { useQueryClient } from '@tanstack/react-query';
 import { refreshSession } from '../../lib/api/client';
 import { tokenStore } from '../../lib/api/tokenStore';
-import type { User } from '../../lib/api/types';
 import { authApi } from './api';
 import { AuthContext, type AuthStatus } from './AuthContext';
+import type { TokenResponse, User } from '../../lib/api/types';
+import type { AuthContextValue } from './AuthContext';
+
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
@@ -42,14 +44,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => tokenStore.onSessionExpired(becomeAnonymous), [becomeAnonymous]);
 
-  const login = useCallback(async (email: string, password: string) => {
-    const tokens = await authApi.login(email, password);
-    tokenStore.set(tokens);
-    const me = await authApi.me();
-    setUser(me);
-    setStatus('authenticated');
-    return me;
-  }, []);
+  /** Satu pintu untuk "punya token baru → ambil profil → tandai login": dipakai login DAN register */
+const establishSession = useCallback(async (tokens: TokenResponse) => {
+  tokenStore.set(tokens);
+  const me = await authApi.me();
+  setUser(me);
+  setStatus('authenticated');
+  return me;
+}, []);
+
+const login = useCallback(
+  async (email: string, password: string) => establishSession(await authApi.login(email, password)),
+  [establishSession],
+);
+//   const login = useCallback(async (email: string, password: string) => {
+//     const tokens = await authApi.login(email, password);
+//     tokenStore.set(tokens);
+//     const me = await authApi.me();
+//     setUser(me);
+//     setStatus('authenticated');
+//     return me;
+//   }, []);
+
+const register = useCallback<AuthContextValue['register']>(
+  async (request) =>
+    establishSession(
+      request.kind === 'customer'
+        ? await authApi.registerCustomer(request.payload)
+        : await authApi.registerCourier(request.payload),
+    ),
+  [establishSession],
+);
+
+const updateUser = useCallback((next: User) => setUser(next), []);
 
   const logout = useCallback(async () => {
     const refreshToken = tokenStore.getRefresh();
@@ -60,6 +87,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [becomeAnonymous]);
 
-  const value = useMemo(() => ({ status, user, login, logout }), [status, user, login, logout]);
+  const value = useMemo(
+  () => ({ status, user, login, register, updateUser, logout }),
+  [status, user, login, register, updateUser, logout],
+);
+//   const value = useMemo(() => ({ status, user, login, logout }), [status, user, login, logout]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

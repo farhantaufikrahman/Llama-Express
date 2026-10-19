@@ -9,6 +9,9 @@ import { TextField } from '../../../components/TextField';
 import { isApiError } from '../../../lib/api/errors';
 import { useAuth } from '../AuthContext';
 import { homeFor } from '../roles';
+import { Link } from 'react-router';
+import { Alert } from '../../../components/Alert';
+import { flash } from '../../../lib/flash';
 
 const schema = z.object({
   email: z.string().trim().min(1, 'Email wajib diisi').email('Format email tidak valid'),
@@ -21,6 +24,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [serverError, setServerError] = useState<string | null>(null);
+const [notice] = useState(() => flash.consume());
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } =
     useForm<FormValues>({ resolver: zodResolver(schema) });
@@ -47,6 +51,7 @@ export default function LoginPage() {
         <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4 rounded-2xl bg-white p-6 shadow-sm">
           <div>
             <h1 className="text-2xl font-extrabold tracking-tight">Masuk</h1>
+            {notice && <Alert kind="success">{notice}</Alert>}
             <p className="mt-1 text-sm text-ink-muted">Customer, kurir, dan admin masuk dari sini.</p>
           </div>
 
@@ -63,6 +68,9 @@ export default function LoginPage() {
             {isSubmitting ? 'Memproses…' : 'Masuk'}
           </Button>
         </form>
+        <p className="mt-5 text-center text-sm text-ink-muted">
+  Belum punya akun? <Link to="/register" className="font-bold text-brand-blue hover:underline">Daftar</Link>
+</p>
       </div>
     </main>
   );
