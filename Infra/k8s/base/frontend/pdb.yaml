@@ -1,0 +1,11 @@
+# Saat node dikosongkan (upgrade, maintenance), Kubernetes hanya boleh mengusir pod frontend
+# selama minimal 1 pod tetap berjalan → situs tidak pernah mati total karena pemeliharaan.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: frontend
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: frontend

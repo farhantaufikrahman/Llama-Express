@@ -16,3 +16,4 @@ resources:
   - backend
   - frontend
   - gateway
+  - network-policies

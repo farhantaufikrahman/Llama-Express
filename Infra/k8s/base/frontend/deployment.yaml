@@ -5,8 +5,6 @@ metadata:
   labels:
     app.kubernetes.io/name: frontend
 spec:
-  # Stateless (hanya file statis) → aman lebih dari satu replika; 2 = tetap melayani saat satu pod diganti
-  replicas: 2
   strategy:
     type: RollingUpdate
     rollingUpdate:
