@@ -1,23 +1,35 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useParams, useLocation, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { Alert } from "../../../components/Alert";
 import { Button } from "../../../components/Button";
 import { isApiError } from "../../../lib/api/errors";
 import { formatDateTime, formatRupiah } from "../../../lib/format";
-import { PickMap } from "../../map/PickMap";
+import { useRealtimeStatus } from "../../../lib/useRealtime";
+import { PickMap, type MapMarker } from "../../map/PickMap";
+import { PaymentPanel } from "../../payment/PaymentPanel";
+import { COURIER_PHASE, trackingApi, trackingKeys } from "../../tracking/api";
+import { CourierCard } from "../../tracking/components/CourierCard";
+import { LiveIndicator } from "../../tracking/components/LiveIndicator";
+import { useLiveOrder } from "../../tracking/useLiveOrder";
 import { orderApi, orderKeys } from "../api";
 import { StatusBadge } from "../components/StatusBadge";
 import { ACTIVE_STATUSES, CANCELLABLE_STATUSES, ORDER_STATUS } from "../status";
 import type { Order } from "../types";
-import { PaymentPanel } from "../../payment/PaymentPanel";
 
 export default function OrderDetailPage() {
   const { code = "" } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+  const realtime = useRealtimeStatus();
   const autoPay =
     (location.state as { autoPay?: boolean } | null)?.autoPay === true;
+
+  // History state ikut tersimpan saat reload → hapus supaya popup bayar tidak terbuka lagi setiap reload
+  useEffect(() => {
+    if (autoPay) navigate(location.pathname, { replace: true, state: null });
+  }, [autoPay, location.pathname, navigate]);
+
   const {
     data: order,
     isPending,
@@ -26,14 +38,23 @@ export default function OrderDetailPage() {
   } = useQuery({
     queryKey: orderKeys.detail(code),
     queryFn: ({ signal }) => orderApi.detail(code, signal),
-    // Sementara (sampai WebSocket di F5): segarkan tiap 10 detik selama order masih berjalan
+    // WebSocket tersambung → tidak perlu polling. Terputus → polling sebagai cadangan (graceful degradation)
     refetchInterval: (q) =>
-      q.state.data && ACTIVE_STATUSES.has(q.state.data.status) ? 10_000 : false,
+      q.state.data &&
+      ACTIVE_STATUSES.has(q.state.data.status) &&
+      realtime !== "connected"
+        ? 15_000
+        : false,
   });
 
-  useEffect(() => {
-    if (autoPay) navigate(location.pathname, { replace: true, state: null });
-  }, [autoPay, location.pathname, navigate]);
+  const isActive = !!order && ACTIVE_STATUSES.has(order.status);
+  useLiveOrder(isActive ? code : null); // berlangganan hanya selama order masih berjalan
+
+  const { data: tracking } = useQuery({
+    queryKey: trackingKeys.order(code),
+    queryFn: ({ signal }) => trackingApi.forOrder(code, signal),
+    enabled: !!order && COURIER_PHASE.has(order.status),
+  });
 
   if (isPending) return <p className="text-ink-muted">Memuat…</p>;
   if (isError) {
@@ -43,6 +64,31 @@ export default function OrderDetailPage() {
       <Alert>{error.message}</Alert>
     );
   }
+
+  const markers: MapMarker[] = [
+    {
+      id: "pickup",
+      kind: "pickup",
+      position: order.pickup,
+      title: "Titik jemput",
+    },
+    {
+      id: "dropoff",
+      kind: "dropoff",
+      position: order.dropoff,
+      title: "Titik antar",
+    },
+    ...(tracking?.lastLocation && isActive
+      ? [
+          {
+            id: "courier",
+            kind: "courier" as const,
+            position: tracking.lastLocation,
+            title: "Posisi kurir",
+          },
+        ]
+      : []),
+  ];
 
   return (
     <article className="flex flex-col gap-4">
@@ -54,7 +100,10 @@ export default function OrderDetailPage() {
       </Link>
       <header className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-extrabold tracking-tight">{order.code}</h1>
-        <StatusBadge status={order.status} />
+        <div className="flex items-center gap-2">
+          {isActive && <LiveIndicator />}
+          <StatusBadge status={order.status} />
+        </div>
       </header>
 
       {order.status === "CREATED" &&
@@ -66,24 +115,18 @@ export default function OrderDetailPage() {
       <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
         <PickMap
           showRoute
-          className="h-72 lg:h-full lg:min-h-80"
-          markers={[
-            {
-              id: "pickup",
-              kind: "pickup",
-              position: order.pickup,
-              title: "Titik jemput",
-            },
-            {
-              id: "dropoff",
-              kind: "dropoff",
-              position: order.dropoff,
-              title: "Titik antar",
-            },
-          ]}
+          markers={markers}
+          path={tracking?.route ?? []}
+          className="h-72 lg:h-full lg:min-h-96"
         />
         <div className="flex flex-col gap-3">
-          {order.verificationCode && ACTIVE_STATUSES.has(order.status) && (
+          {tracking?.courier && (
+            <CourierCard
+              courier={tracking.courier}
+              lastLocation={isActive ? tracking.lastLocation : null}
+            />
+          )}
+          {order.verificationCode && isActive && (
             <VerificationCard code={order.verificationCode} />
           )}
           <TrackingLinkCard token={order.trackingToken} />
@@ -126,10 +169,17 @@ function TrackingLinkCard({ token }: { token: string }) {
         <p className="text-xs font-semibold text-ink-muted">
           Link lacak untuk penerima
         </p>
-        <p className="truncate text-sm">{url}</p>
+        <a
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          className="block truncate text-sm text-brand-blue hover:underline"
+        >
+          {url}
+        </a>
       </div>
       <button
-        onClick={copy}
+        onClick={() => void copy()}
         className="shrink-0 rounded-lg bg-cream px-3 py-2 text-sm font-bold"
       >
         {copied ? "Tersalin ✓" : "Salin"}
@@ -205,8 +255,8 @@ function CancelSection({ code }: { code: string }) {
   const cancel = useMutation({
     mutationFn: () => orderApi.cancel(code, reason.trim()),
     onSuccess: (updated) => {
-      queryClient.setQueryData(orderKeys.detail(code), updated); // tampilkan hasil langsung tanpa request ulang
-      queryClient.invalidateQueries({ queryKey: orderKeys.list() });
+      queryClient.setQueryData(orderKeys.detail(code), updated);
+      void queryClient.invalidateQueries({ queryKey: orderKeys.list() });
       setOpen(false);
     },
   });
