@@ -1,41 +1,45 @@
 name: llama-express
-
 services:
+  # ───────────────────────────── CI ─────────────────────────────
   jenkins:
     build: ./jenkins
     image: llama-jenkins:local
     container_name: llama-jenkins
     profiles: ["ci"]
     ports:
-      - "8090:8080" # UI Jenkins → http://localhost:8090
+      - "8090:8080"
     group_add:
-      - "0" # akses /var/run/docker.sock (milik grup root di Docker Desktop)
+      - "0"
     environment:
       JAVA_OPTS: "-Xmx1g"
     volumes:
-      - jenkins_home:/var/jenkins_home # konfigurasi, job, credentials, riwayat build bertahan
+      - jenkins_home:/var/jenkins_home
       - /var/run/docker.sock:/var/run/docker.sock
     restart: unless-stopped
+
+  # ───────────────────────────── APP ─────────────────────────────
   backend:
     build:
       context: ../Backend/backend
     image: llama-express-backend:local
-    profiles: ["app"] # tidak ikut "docker compose up -d" biasa (saat dev, backend jalan di laptop)
+    profiles: ["app"]
     ports:
       - "8080:8080"
     env_file:
-      - ../Backend/backend/.env # rahasia diberikan saat RUNTIME, bukan dipanggang ke image
+      - ../Backend/backend/.env
     environment:
-      # alamat antar-container memakai NAMA SERVICE, bukan localhost
       SPRING_DATASOURCE_URL: jdbc:oracle:thin:@//oracle:1521/FREEPDB1
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:19092
       SPRING_DATA_REDIS_HOST: redis
     depends_on:
-      - oracle
-      - kafka
-      - redis
-    restart: on-failure # Oracle butuh ±1 menit untuk siap → backend mencoba lagi sampai berhasil
-    stop_grace_period: 30s # beri waktu graceful shutdown (timeout-per-shutdown-phase 20s)
+      oracle:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      redis:
+        condition: service_started
+    restart: on-failure
+    stop_grace_period: 30s
 
   frontend:
     build:
@@ -52,21 +56,26 @@ services:
       backend:
         condition: service_started
     restart: unless-stopped
+
+  # ───────────────────────────── QUALITY ─────────────────────────────
   sonarqube:
     image: sonarqube:26.10.0.133078-community
-    profiles: ["quality"] # TIDAK ikut jalan saat "docker compose up -d" biasa
+    profiles: ["quality"]
     ports:
       - "9000:9000"
     environment:
-      SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true" # dev lokal: lewati cek kernel Elasticsearch di WSL2
+      SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"
     volumes:
       - sonarqube_data:/opt/sonarqube/data
       - sonarqube_logs:/opt/sonarqube/logs
       - sonarqube_extensions:/opt/sonarqube/extensions
     stop_grace_period: 1m
+
+  # ───────────────────────────── DEV (infrastruktur lokal) ─────────────────────────────
   oracle:
     image: gvenzl/oracle-free:23-slim-faststart
     container_name: llama-oracle
+    profiles: ["dev"]
     environment:
       ORACLE_PASSWORD: ${ORACLE_SYS_PASSWORD}
       APP_USER: ${DB_USERNAME}
@@ -82,28 +91,10 @@ services:
       retries: 20
       start_period: 60s
 
-  prometheus:
-    image: prom/prometheus:v3.5.0
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-
-  grafana:
-    image: grafana/grafana:12.1.0
-    ports:
-      - "3000:3000"
-    environment:
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
-    volumes:
-      - ./grafana/provisioning:/etc/grafana/provisioning:ro
-    depends_on:
-      - prometheus
   kafka:
     image: apache/kafka:4.1.0
     container_name: llama-kafka
+    profiles: ["dev"]
     ports:
       - "9092:9092"
     environment:
@@ -125,10 +116,11 @@ services:
   kafka-ui:
     image: kafbat/kafka-ui:latest
     container_name: llama-kafka-ui
+    profiles: ["dev"]
     depends_on:
       - kafka
     ports:
-      - "8090:8080"
+      - "8091:8080"
     environment:
       KAFKA_CLUSTERS_0_NAME: local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:19092
@@ -136,11 +128,35 @@ services:
   redis:
     image: redis:7-alpine
     container_name: llama-redis
+    profiles: ["dev"]
     command: ["redis-server", "--appendonly", "yes"]
     ports:
       - "6379:6379"
     volumes:
       - redis-data:/data
+
+  # ───────────────────────────── MONITORING ─────────────────────────────
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    profiles: ["monitoring"]
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  grafana:
+    image: grafana/grafana:12.1.0
+    profiles: ["monitoring"]
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
 
 volumes:
   oracle-data:

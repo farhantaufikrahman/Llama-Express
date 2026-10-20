@@ -73,7 +73,7 @@ export default {
     "!src/main.tsx",
     "!src/test/**",
   ],
-  coverageReporters: ["text-summary", "lcov"],
+  coverageReporters: ["text-summary", "lcov", "cobertura"],
   coverageThreshold: {
     "./src/lib/api/client.ts": { lines: 75 },
   },
