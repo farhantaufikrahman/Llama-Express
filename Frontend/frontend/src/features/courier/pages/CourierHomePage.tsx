@@ -4,7 +4,7 @@ import { Link, useNavigate } from "react-router";
 import { Alert } from "../../../components/Alert";
 import { isApiError } from "../../../lib/api/errors";
 import { courierApi, courierKeys } from "../api";
-import { useCourierRuntime } from "../CourierRuntime";
+import { useCourierRuntime } from "../courierRuntimeContext";
 import { LocationStatusBar } from "../components/LocationStatusBar";
 import { OfferCard } from "../components/OfferCard";
 
