@@ -20,5 +20,4 @@ app:
     max-attempts: 3
   security:
     jwt:
-      # secret KHUSUS test (bukan rahasia, aman di-commit) — base64 dari 45 byte
       secret: bGxhbWEtZXhwcmVzcy10ZXN0LW9ubHktc2VjcmV0LWtleS0wMTIzNDU2Nzg5
