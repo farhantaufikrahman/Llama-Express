@@ -5,8 +5,10 @@
 const raw = import.meta.env;
 
 /** Kosong = API di origin yang sama (Nginx mem-proxy /api & /ws). Diisi = backend di domain lain (mis. Vercel → api.domain). */
-const apiBaseUrl = (raw.VITE_API_BASE_URL ?? "").trim().replace(/\/+$/, "");
-
+let apiBaseUrl = (raw.VITE_API_BASE_URL ?? "").trim();
+while (apiBaseUrl.endsWith("/")) {
+  apiBaseUrl = apiBaseUrl.slice(0, -1);
+}
 function toWsUrl(base: string): string {
   if (base) return `${base.replace(/^http/, "ws")}/ws`; // http→ws, https→wss
   const { protocol, host } = window.location;

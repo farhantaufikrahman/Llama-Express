@@ -174,7 +174,7 @@ export default function NewOrderPage() {
         paymentMethod: v.paymentMethod,
       });
       await queryClient.invalidateQueries({ queryKey: orderKeys.all });
-      navigate(`/orders/${order.code}`, {
+      await navigate(`/orders/${order.code}`, {
         replace: true,
         state: { autoPay: order.paymentMethod === "MIDTRANS" }, // bayar online → popup langsung terbuka
       });

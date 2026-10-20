@@ -60,7 +60,7 @@ export default function CourierHomePage() {
       setError(null);
       void queryClient.invalidateQueries({ queryKey: courierKeys.offers });
       void queryClient.invalidateQueries({ queryKey: courierKeys.activeJob });
-      if (accept) navigate("/courier/job");
+      if (accept) void navigate("/courier/job");
     },
     onError: (e) => {
       showError(e);
