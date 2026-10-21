@@ -1,6 +1,7 @@
 import { HttpResponse } from "msw";
 import type { PageResponse, TokenResponse, User } from "../lib/api/types";
 import { env } from "./env";
+import { ApiError } from "../lib/api/errors";
 
 export const API = env.apiBaseUrl;
 export const REFRESH_PATH = "/api/v1/auth/refresh";
@@ -57,4 +58,18 @@ export function pageOf<T>(
     totalElements,
     totalPages: Math.ceil(totalElements / size),
   };
+}
+
+export function apiError(
+  status: number,
+  code: string,
+  detail: string,
+): ApiError {
+  return new ApiError(status, {
+    type: "about:blank",
+    title: "Error",
+    status,
+    detail,
+    code,
+  } as ConstructorParameters<typeof ApiError>[1]);
 }
