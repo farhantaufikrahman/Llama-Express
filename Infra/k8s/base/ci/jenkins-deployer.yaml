@@ -1,0 +1,48 @@
+# Identitas Jenkins di dalam cluster — HANYA boleh mengganti image & memantau rollout backend/frontend.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: jenkins-deployer
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: jenkins-deployer
+rules:
+  # Mengganti image (set image), mencatat alasan (annotate), dan rollback (rollout undo) — khusus 2 Deployment ini
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    resourceNames: ["backend", "frontend"]
+    verbs: ["get", "patch"]
+  # "rollout status" memantau perubahan Deployment & ReplicaSet
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["replicasets"]
+    verbs: ["get"]
+  # Melihat pod (untuk diagnosis kalau rollout gagal) — TANPA hak exec/delete
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: jenkins-deployer
+subjects:
+  - kind: ServiceAccount
+    name: jenkins-deployer
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: jenkins-deployer
+---
+# Token jangka panjang untuk ServiceAccount (Kubernetes mengisinya otomatis)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: jenkins-deployer-token
+  annotations:
+    kubernetes.io/service-account.name: jenkins-deployer
+type: kubernetes.io/service-account-token

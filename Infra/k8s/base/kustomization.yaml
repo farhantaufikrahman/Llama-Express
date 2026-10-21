@@ -17,3 +17,4 @@ resources:
   - frontend
   - gateway
   - network-policies
+  - ci
