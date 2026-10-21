@@ -1,0 +1,61 @@
+# Konektor Cloudflare Tunnel: membuka koneksi KELUAR ke Cloudflare → tidak perlu port-forward router / IP publik.
+# Rute (hostname → service) dikelola di dashboard Zero Trust (remotely-managed tunnel).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudflared
+  labels:
+    app.kubernetes.io/name: cloudflared
+spec:
+  replicas: 2 # 2 konektor → tunnel tetap hidup saat satu pod restart / rolling update
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cloudflared
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cloudflared
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532 # user "nonroot" di image distroless cloudflared
+        runAsGroup: 65532
+        fsGroup: 65532 # file token dari Secret bisa dibaca user 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: cloudflared
+          image: cloudflare/cloudflared:2026.10.0
+          # ENTRYPOINT image: ["cloudflared", "--no-autoupdate"] → args di bawah ditambahkan di belakangnya
+          args: ["tunnel", "--metrics", "0.0.0.0:2000", "run"]
+          env:
+            - name: TUNNEL_TOKEN_FILE # token dibaca dari file, bukan env → tidak terlihat di describe/proc
+              value: /etc/cloudflared/token
+          ports:
+            - name: metrics
+              containerPort: 2000
+          readinessProbe:
+            httpGet: { path: /ready, port: metrics } # 200 bila minimal 1 koneksi ke edge Cloudflare aktif
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /ready, port: metrics }
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests: { cpu: 10m, memory: 32Mi }
+            limits: { memory: 128Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: token
+              mountPath: /etc/cloudflared
+              readOnly: true
+      volumes:
+        - name: token
+          secret:
+            secretName: cloudflared-token # kustomize menambahkan hash suffix otomatis
+            defaultMode: 0440

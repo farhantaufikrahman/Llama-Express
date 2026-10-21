@@ -1,5 +1,5 @@
 # Pod data plane Gateway (Nginx milik NGF) boleh menerima traffic dari mana saja di port HTTP —
-# ia memang pintu masuk publik.
+# ia memang pintu masuk publik (localhost via LoadBalancer & cloudflared dari dalam cluster).
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -7,7 +7,7 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      gateway.networking.k8s.io/gateway-name: llama-gateway-nginx-65b5678dcd-82rkv
+      gateway.networking.k8s.io/gateway-name: llama-gateway # nama Gateway, BUKAN nama pod
   policyTypes:
     - Ingress
   ingress:

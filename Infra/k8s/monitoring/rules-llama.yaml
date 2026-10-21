@@ -1,0 +1,149 @@
+# Aturan alert khusus Llama Express (dibaca Prometheus Operator; ruleSelector = semua PrometheusRule)
+# Divalidasi dengan: promtool check rules (Prometheus 3.5)
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: llama-express
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/part-of: llama-express
+spec:
+  groups:
+      - name: llama-backend
+        rules:
+          - alert: LlamaBackendDown
+            # absent(... == 1) juga menangkap kasus pod hilang sama sekali (scale 0 / tidak ter-scrape)
+            expr: absent(up{namespace="llama", job="backend"} == 1)
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: Backend Llama Express tidak bisa di-scrape
+              description: Tidak ada pod backend yang UP selama 2 menit. Cek `kubectl -n llama get pods` dan log backend.
+
+          - alert: LlamaBackendHigh5xxRate
+            expr: |
+              (
+                sum(rate(http_server_requests_seconds_count{namespace="llama", job="backend", uri!~"/actuator.*", status=~"5.."}[5m]))
+                /
+                sum(rate(http_server_requests_seconds_count{namespace="llama", job="backend", uri!~"/actuator.*"}[5m]))
+              ) > 0.05
+              and on()
+              sum(rate(http_server_requests_seconds_count{namespace="llama", job="backend", uri!~"/actuator.*"}[5m])) > 0.1
+            for: 5m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Error 5xx backend {{ $value | humanizePercentage }}"
+              description: Lebih dari 5% request API gagal dengan 5xx selama 5 menit (dengan trafik > 0.1 req/s).
+
+          - alert: LlamaBackendSlowP95
+            expr: |
+              histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{namespace="llama", job="backend", uri!~"/actuator.*"}[5m]))) > 1
+              and on()
+              sum(rate(http_server_requests_seconds_count{namespace="llama", job="backend", uri!~"/actuator.*"}[5m])) > 0.1
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Latency p95 backend {{ $value | humanizeDuration }}"
+              description: p95 latency API di atas 1 detik selama 10 menit.
+
+          - alert: LlamaBackendErrorLogs
+            expr: sum(increase(logback_events_total{namespace="llama", job="backend", level="error"}[5m])) > 10
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "{{ $value | humanize }} log ERROR dalam 5 menit"
+              description: Backend menulis banyak log level ERROR. Cek `kubectl -n llama logs deploy/backend`.
+
+          - alert: LlamaJvmHeapHigh
+            expr: |
+              sum(jvm_memory_used_bytes{namespace="llama", job="backend", area="heap"})
+              / sum(jvm_memory_max_bytes{namespace="llama", job="backend", area="heap"} > 0) > 0.9
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Heap JVM backend {{ $value | humanizePercentage }}"
+              description: Heap terpakai di atas 90% selama 10 menit — risiko GC berat / OutOfMemoryError.
+
+          - alert: LlamaDbPoolExhausted
+            expr: max(hikaricp_connections_pending{namespace="llama", job="backend"}) > 0
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: Ada thread yang menunggu koneksi database
+              description: HikariCP pending > 0 selama 5 menit — pool penuh atau query lambat.
+
+          - alert: LlamaDbConnectionTimeouts
+            expr: sum(increase(hikaricp_connections_timeout_total{namespace="llama", job="backend"}[5m])) > 0
+            labels:
+              severity: critical
+            annotations:
+              summary: Timeout saat mengambil koneksi database
+              description: Request gagal mendapat koneksi DB dalam 5 menit terakhir.
+
+          - alert: LlamaContainerMemoryNearLimit
+            expr: |
+              max by (pod, container) (container_memory_working_set_bytes{metrics_path="/metrics/resource", namespace="llama", container!=""})
+              / on (pod, container)
+              max by (pod, container) (kube_pod_container_resource_limits{namespace="llama", resource="memory"})
+              > 0.9
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              summary: "{{ $labels.container }} memakai {{ $value | humanizePercentage }} dari limit memori"
+              description: "Pod {{ $labels.pod }} mendekati limit memori — risiko OOMKilled."
+
+      - name: llama-business
+        rules:
+          - alert: LlamaOutboxBacklog
+            expr: max(llama_outbox_pending{namespace="llama"}) > 50
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              summary: "{{ $value | humanize }} event outbox belum terkirim"
+              description: Event menumpuk di tabel outbox — publisher Kafka macet atau Kafka tidak bisa dijangkau.
+
+          - alert: LlamaKafkaDeadLetters
+            expr: sum(increase(llama_kafka_dead_letters_total{namespace="llama"}[10m])) > 0
+            labels:
+              severity: warning
+            annotations:
+              summary: Ada pesan Kafka yang masuk dead-letter topic
+              description: Pesan gagal diproses setelah retry habis dalam 10 menit terakhir.
+
+          - alert: LlamaKafkaConsumerLagHigh
+            expr: max(kafka_consumer_fetch_manager_records_lag_max{namespace="llama", job="backend"}) > 1000
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Consumer lag backend {{ $value | humanize }} pesan"
+              description: Backend tertinggal memproses pesan Kafka selama 10 menit.
+
+          - alert: LlamaOrdersWaitingNoCourier
+            expr: |
+              max(llama_orders_searching{namespace="llama"}) > 0
+              and on()
+              max(llama_couriers_online{namespace="llama"}) == 0
+            for: 10m
+            labels:
+              severity: info
+            annotations:
+              summary: "{{ $value | humanize }} order menunggu, tidak ada kurir online"
+              description: Ada order berstatus SEARCHING_COURIER selama 10 menit tanpa satu pun kurir online.
+
+          - alert: LlamaRateLimitSpike
+            expr: sum(rate(llama_ratelimit_rejected_total{namespace="llama"}[5m])) * 60 > 30
+            for: 5m
+            labels:
+              severity: info
+            annotations:
+              summary: "{{ $value | humanize }} request/menit ditolak rate limiter"
+              description: Kemungkinan abuse, bot, atau limit terlalu ketat.
