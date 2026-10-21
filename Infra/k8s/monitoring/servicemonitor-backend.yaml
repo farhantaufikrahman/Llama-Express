@@ -1,0 +1,19 @@
+# "Prometheus, tolong scrape Service backend (port bernama http) di /actuator/prometheus"
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: backend
+  namespace: llama
+  labels:
+    app.kubernetes.io/name: backend
+    app.kubernetes.io/part-of: llama-express
+spec:
+  namespaceSelector:
+    matchNames: [llama]
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: backend # label Service backend (terlihat di output 11)
+  endpoints:
+    - port: http # nama port Service backend (terlihat di output 11)
+      path: /actuator/prometheus
+      interval: 15s
