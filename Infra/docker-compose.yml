@@ -1,9 +1,81 @@
 name: llama-express
-
 services:
+  # ───────────────────────────── CI ─────────────────────────────
+  jenkins:
+    build: ./jenkins
+    image: llama-jenkins:local
+    container_name: llama-jenkins
+    profiles: ["ci"]
+    ports:
+      - "8090:8080"
+    group_add:
+      - "0"
+    environment:
+      JAVA_OPTS: "-Xmx1g"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+
+  # ───────────────────────────── APP ─────────────────────────────
+  backend:
+    build:
+      context: ../Backend/backend
+    image: llama-express-backend:local
+    profiles: ["app"]
+    ports:
+      - "8080:8080"
+    env_file:
+      - ../Backend/backend/.env
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:oracle:thin:@//oracle:1521/FREEPDB1
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:19092
+      SPRING_DATA_REDIS_HOST: redis
+    depends_on:
+      oracle:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      redis:
+        condition: service_started
+    restart: on-failure
+    stop_grace_period: 30s
+
+  frontend:
+    build:
+      context: ../Frontend/frontend
+      args:
+        VITE_MIDTRANS_CLIENT_KEY: ${MIDTRANS_CLIENT_KEY:?isi MIDTRANS_CLIENT_KEY di Infra/.env}
+    image: llama-express-frontend:local
+    profiles: ["app"]
+    environment:
+      BACKEND_URL: http://backend:8080
+    ports:
+      - "8088:8080"
+    depends_on:
+      backend:
+        condition: service_started
+    restart: unless-stopped
+
+  # ───────────────────────────── QUALITY ─────────────────────────────
+  sonarqube:
+    image: sonarqube:26.10.0.133078-community
+    profiles: ["quality"]
+    ports:
+      - "9000:9000"
+    environment:
+      SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_logs:/opt/sonarqube/logs
+      - sonarqube_extensions:/opt/sonarqube/extensions
+    stop_grace_period: 1m
+
+  # ───────────────────────────── DEV (infrastruktur lokal) ─────────────────────────────
   oracle:
     image: gvenzl/oracle-free:23-slim-faststart
     container_name: llama-oracle
+    profiles: ["dev"]
     environment:
       ORACLE_PASSWORD: ${ORACLE_SYS_PASSWORD}
       APP_USER: ${DB_USERNAME}
@@ -22,6 +94,7 @@ services:
   kafka:
     image: apache/kafka:4.1.0
     container_name: llama-kafka
+    profiles: ["dev"]
     ports:
       - "9092:9092"
     environment:
@@ -43,10 +116,11 @@ services:
   kafka-ui:
     image: kafbat/kafka-ui:latest
     container_name: llama-kafka-ui
+    profiles: ["dev"]
     depends_on:
       - kafka
     ports:
-      - "8090:8080"
+      - "8091:8080"
     environment:
       KAFKA_CLUSTERS_0_NAME: local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:19092
@@ -54,13 +128,41 @@ services:
   redis:
     image: redis:7-alpine
     container_name: llama-redis
+    profiles: ["dev"]
     command: ["redis-server", "--appendonly", "yes"]
     ports:
       - "6379:6379"
     volumes:
       - redis-data:/data
 
+  # ───────────────────────────── MONITORING ─────────────────────────────
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    profiles: ["monitoring"]
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  grafana:
+    image: grafana/grafana:12.1.0
+    profiles: ["monitoring"]
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+
 volumes:
   oracle-data:
   kafka-data:
   redis-data:
+  sonarqube_data:
+  sonarqube_logs:
+  sonarqube_extensions:
+  jenkins_home:

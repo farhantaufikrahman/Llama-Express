@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka
+  labels:
+    app.kubernetes.io/name: kafka
+spec:
+  clusterIP: None
+  # PENTING untuk KRaft: DNS kafka-0.kafka... sudah harus ada SEBELUM pod "ready",
+  # karena controller perlu menghubungi alamatnya sendiri untuk membentuk quorum.
+  # Tanpa ini: pod menunggu DNS, DNS menunggu pod ready → deadlock.
+  publishNotReadyAddresses: true
+  selector:
+    app.kubernetes.io/name: kafka
+  ports:
+    - name: client
+      port: 9092
+      targetPort: client
+    - name: controller
+      port: 9093
+      targetPort: controller

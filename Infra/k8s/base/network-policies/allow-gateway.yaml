@@ -1,0 +1,16 @@
+# Pod data plane Gateway (Nginx milik NGF) boleh menerima traffic dari mana saja di port HTTP —
+# ia memang pintu masuk publik.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-gateway-public
+spec:
+  podSelector:
+    matchLabels:
+      gateway.networking.k8s.io/gateway-name: llama-gateway-nginx-65b5678dcd-82rkv
+  policyTypes:
+    - Ingress
+  ingress:
+    - ports:
+        - protocol: TCP
+          port: 80

@@ -1,0 +1,16 @@
+# Headless Service (clusterIP: None): DNS "redis" langsung menunjuk IP pod redis-0.
+# StatefulSet WAJIB punya satu headless Service sebagai "governing service".
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  labels:
+    app.kubernetes.io/name: redis
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: redis
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: redis

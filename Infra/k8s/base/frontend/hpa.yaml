@@ -1,0 +1,21 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: frontend
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: frontend
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70 # % dari requests.cpu (25m) → tambah pod bila rata-rata > ±17m
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 120 # tunggu 2 menit sebelum mengurangi pod → tidak "naik-turun" terus

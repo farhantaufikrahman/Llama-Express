@@ -1,0 +1,17 @@
+# hasil build & cache lokal — dibangun ulang di dalam container
+target/
+.mvn/wrapper/maven-wrapper.jar
+
+# RAHASIA — tidak boleh masuk image
+.env
+.env.*
+!.env.example
+
+# tidak dibutuhkan untuk build
+.git/
+.vscode/
+.idea/
+postman/
+*.log
+newman.log
+HELP.md

@@ -1,1 +1,4 @@
 .env
+
+# Rahasia Kubernetes per lingkungan — JANGAN di-commit
+k8s/overlays/*/secrets/

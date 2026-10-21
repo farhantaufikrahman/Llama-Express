@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: oracle
+  labels:
+    app.kubernetes.io/name: oracle
+spec:
+  serviceName: oracle
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: oracle
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: oracle
+    spec:
+      terminationGracePeriodSeconds: 120 # waktu untuk SHUTDOWN IMMEDIATE yang bersih
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 54321 # user "oracle"
+        runAsGroup: 54321
+        fsGroup: 54321
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: oracle
+          # Varian NON-faststart: dirancang membuat database di volume kosong pada start pertama
+          # (beberapa menit sekali saja), lalu start cepat dari volume pada run berikutnya.
+          image: gvenzl/oracle-free:23-slim
+          # Restart container di pod yang sama mewarisi IPC namespace pod → bersihkan sisa SGA dulu.
+          # exec → entrypoint jadi PID 1 dan menerima SIGTERM untuk shutdown bersih.
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              ipcrm --all=shm 2>/dev/null || true
+              ipcrm --all=sem 2>/dev/null || true
+              exec container-entrypoint.sh
+          envFrom:
+            - secretRef:
+                name: oracle-credentials # ORACLE_PASSWORD, APP_USER, APP_USER_PASSWORD
+          ports:
+            - name: sql
+              containerPort: 1521
+          resources:
+            requests:
+              cpu: 500m
+              memory: 2Gi
+            limits:
+              memory: 4Gi # naik dari 3Gi: /dev/shm (tmpfs) ikut dihitung sebagai memori pod
+          startupProbe: # start pertama membuat database → beri hingga 15 menit
+            exec:
+              command: ["healthcheck.sh"]
+            periodSeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 90
+          readinessProbe:
+            exec:
+              command: ["healthcheck.sh"]
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            exec:
+              command: ["healthcheck.sh"]
+            periodSeconds: 30
+            timeoutSeconds: 30
+            failureThreshold: 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: data
+              mountPath: /opt/oracle/oradata
+            - name: dshm
+              mountPath: /dev/shm # padanan "shm_size" di Docker Compose
+      volumes:
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 1Gi
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 10Gi

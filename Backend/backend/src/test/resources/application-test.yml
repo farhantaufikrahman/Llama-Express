@@ -1,0 +1,23 @@
+app:
+  rate-limit:
+    rules:
+      auth:
+        limit: 1000
+      tracking:
+        limit: 1000
+  midtrans:
+    provider: fake
+    server-key: SB-Mid-server-TEST
+  admin:
+    email: admin@test.local
+    password: admin12345
+  outbox:
+    poll-interval-ms: 200
+  storage:
+    provider: fake
+  dispatch:
+    sweep-interval-ms: 500
+    max-attempts: 3
+  security:
+    jwt:
+      secret: bGxhbWEtZXhwcmVzcy10ZXN0LW9ubHktc2VjcmV0LWtleS0wMTIzNDU2Nzg5
