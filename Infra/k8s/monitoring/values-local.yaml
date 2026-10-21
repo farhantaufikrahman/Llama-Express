@@ -1,0 +1,95 @@
+# kube-prometheus-stack 92.11.0 — profil ramping untuk Docker Desktop (1 node, RAM terbatas)
+# Kunci-kunci di file ini dicocokkan dengan values.yaml chart versi 92.11.0.
+
+crds:
+  enabled: true
+
+# Control-plane Docker Desktop listen di 127.0.0.1 → tidak bisa di-scrape dari pod.
+# Dimatikan agar tidak muncul target DOWN & alert palsu.
+kubeEtcd:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeProxy:
+  enabled: false
+kubelet:
+  serviceMonitor:
+    resource: true
+    resourcePath: /metrics/resource
+
+windowsMonitoring:
+  enabled: false
+
+defaultRules:
+  create: true
+  rules:
+    etcd: false
+    kubeControllerManager: false
+    kubeSchedulerAlerting: false
+    kubeSchedulerRecording: false
+    kubeProxy: false
+    windows: false
+
+alertmanager:
+  enabled: false # dinyalakan di A2 bersama aturan alert
+
+prometheusOperator:
+  resources:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { memory: 192Mi }
+  prometheusConfigReloader:
+    resources:
+      requests: { cpu: 10m, memory: 32Mi }
+      limits: { memory: 64Mi }
+
+prometheus:
+  prometheusSpec:
+    scrapeInterval: 30s # produksi umumnya 15–60s; ServiceMonitor backend memakai 15s sendiri
+    evaluationInterval: 30s
+    retention: 3d # lokal: cukup untuk analisis beberapa hari
+    retentionSize: 2GB # batas keras, data tertua dibuang lebih dulu
+    walCompression: true
+    resources:
+      requests: { cpu: 100m, memory: 512Mi }
+      limits: { memory: 1Gi }
+    # Default chart hanya membaca ServiceMonitor berlabel release=<nama-release>.
+    # false → baca SEMUA ServiceMonitor/PodMonitor/Rule/Probe di semua namespace (cocok untuk 1 tim/1 cluster).
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    probeSelectorNilUsesHelmValues: false
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 5Gi
+
+grafana:
+  admin:
+    existingSecret: grafana-admin # dibuat manual (langkah 2), tidak pernah masuk git
+    userKey: admin-user
+    passwordKey: admin-password
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { memory: 512Mi }
+  sidecar:
+    resources:
+      requests: { cpu: 10m, memory: 64Mi }
+      limits: { memory: 128Mi }
+
+kube-state-metrics:
+  resources:
+    requests: { cpu: 10m, memory: 32Mi }
+    limits: { memory: 128Mi }
+
+prometheus-node-exporter:
+  resources:
+    requests: { cpu: 10m, memory: 24Mi }
+    limits: { memory: 64Mi }
+  hostRootFsMount:
+    enabled: true
+    mountPropagation: ""
