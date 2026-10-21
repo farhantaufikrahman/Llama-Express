@@ -4,7 +4,7 @@ import { Link, useNavigate } from "react-router";
 import { Alert } from "../../../components/Alert";
 import { isApiError } from "../../../lib/api/errors";
 import { courierApi, courierKeys } from "../api";
-import { useCourierRuntime } from "../CourierRuntime";
+import { useCourierRuntime } from "../courierRuntimeContext";
 import { LocationStatusBar } from "../components/LocationStatusBar";
 import { OfferCard } from "../components/OfferCard";
 
@@ -60,7 +60,7 @@ export default function CourierHomePage() {
       setError(null);
       void queryClient.invalidateQueries({ queryKey: courierKeys.offers });
       void queryClient.invalidateQueries({ queryKey: courierKeys.activeJob });
-      if (accept) navigate("/courier/job");
+      if (accept) void navigate("/courier/job");
     },
     onError: (e) => {
       showError(e);

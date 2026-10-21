@@ -27,7 +27,9 @@ export default function OrderDetailPage() {
 
   // History state ikut tersimpan saat reload → hapus supaya popup bayar tidak terbuka lagi setiap reload
   useEffect(() => {
-    if (autoPay) navigate(location.pathname, { replace: true, state: null });
+    if (autoPay) {
+      void navigate(location.pathname, { replace: true, state: null });
+    }
   }, [autoPay, location.pathname, navigate]);
 
   const {

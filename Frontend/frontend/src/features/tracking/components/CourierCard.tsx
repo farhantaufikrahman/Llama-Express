@@ -1,3 +1,4 @@
+import { useNow } from "../../../lib/useNow";
 import type { CourierInfo, LocationPoint } from "../types";
 
 export function CourierCard({
@@ -7,9 +8,14 @@ export function CourierCard({
   courier: CourierInfo;
   lastLocation: LocationPoint | null;
 }) {
+  const now = useNow(1_000);
   const seconds = lastLocation
-    ? Math.round((Date.now() - new Date(lastLocation.at).getTime()) / 1000)
+    ? Math.max(
+        0,
+        Math.round((now - new Date(lastLocation.at).getTime()) / 1000),
+      )
     : null;
+
   return (
     <div className="flex items-center justify-between gap-3 rounded-2xl bg-white p-4">
       <div className="flex items-center gap-3">

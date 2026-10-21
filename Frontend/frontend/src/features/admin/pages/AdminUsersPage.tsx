@@ -73,7 +73,10 @@ export default function AdminUsersPage() {
           aria-label="Cari pengguna"
           className="h-11 min-w-0 flex-1 rounded-xl border-[1.5px] border-line bg-white px-3 text-sm"
         />
-        <button className="rounded-xl bg-navy-900 px-4 text-sm font-bold text-gold-400">
+        <button
+          type="submit"
+          className="rounded-xl bg-navy-900 px-4 text-sm font-bold text-gold-400"
+        >
           Cari
         </button>
       </form>

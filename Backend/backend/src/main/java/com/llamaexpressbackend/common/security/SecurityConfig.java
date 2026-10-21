@@ -32,7 +32,9 @@ public class SecurityConfig {
                         "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html",
                         "/error"
         };
-
+        // java:S4502 — CSRF sengaja dinonaktifkan: autentikasi lewat header Authorization (JWT), tanpa cookie sesi.
+        // Tinjau ulang keputusan ini bila token dipindah ke cookie (lihat komentar di .csrf(...) di bawah).
+        @SuppressWarnings("java:S4502")
         @Bean
         SecurityFilterChain securityFilterChain(HttpSecurity http,
                         JwtAuthenticationConverter jwtAuthenticationConverter) throws Exception {

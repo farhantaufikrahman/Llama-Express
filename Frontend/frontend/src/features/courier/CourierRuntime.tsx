@@ -1,22 +1,8 @@
-import { createContext, useContext, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { courierApi, courierKeys } from "./api";
-import type { CourierProfile } from "./types";
-import {
-  useLocationReporter,
-  type LocationStatus,
-} from "./useLocationReporter";
-
-interface CourierRuntimeValue {
-  profile: CourierProfile | undefined;
-  location: {
-    status: LocationStatus;
-    position: { lat: number; lng: number } | null;
-    lastSentAt: number | null;
-  };
-}
-
-const CourierRuntimeContext = createContext<CourierRuntimeValue | null>(null);
+import { CourierRuntimeContext } from "./courierRuntimeContext";
+import { useLocationReporter } from "./useLocationReporter";
 
 /**
  * Dipasang di LAYOUT (bukan di satu halaman) → pengiriman GPS tetap jalan
@@ -33,11 +19,4 @@ export function CourierRuntime({ children }: { children: ReactNode }) {
       {children}
     </CourierRuntimeContext.Provider>
   );
-}
-
-export function useCourierRuntime(): CourierRuntimeValue {
-  const ctx = useContext(CourierRuntimeContext);
-  if (!ctx)
-    throw new Error("useCourierRuntime harus di dalam <CourierRuntime>");
-  return ctx;
 }

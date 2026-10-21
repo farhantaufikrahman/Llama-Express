@@ -16,23 +16,21 @@ const finite = (n: number | null) =>
   n != null && Number.isFinite(n) ? n : undefined;
 
 export function useLocationReporter(enabled: boolean) {
-  const [status, setStatus] = useState<LocationStatus>("off");
+  // Dukungan GPS tidak berubah selama aplikasi berjalan → cukup dihitung, bukan disimpan di state
+  const supported =
+    typeof navigator !== "undefined" && "geolocation" in navigator;
+
+  // Hanya status yang berasal dari GPS (callback watchPosition) yang perlu state
+  const [watchStatus, setWatchStatus] =
+    useState<Exclude<LocationStatus, "off">>("locating");
   const [position, setPosition] = useState<LocationSample | null>(null);
   const [lastSentAt, setLastSentAt] = useState<number | null>(null);
   const latest = useRef<LocationSample | null>(null);
   const lastSent = useRef(0);
 
   useEffect(() => {
-    if (!enabled) {
-      setStatus("off");
-      return;
-    }
-    if (!("geolocation" in navigator)) {
-      setStatus("unavailable");
-      return;
-    }
+    if (!enabled || !supported) return;
     let stopped = false;
-    setStatus("locating");
 
     const send = async (force: boolean) => {
       const sample = latest.current;
@@ -58,11 +56,11 @@ export function useLocationReporter(enabled: boolean) {
         };
         latest.current = sample;
         setPosition(sample);
-        setStatus("sharing");
+        setWatchStatus("sharing");
         void send(false);
       },
       (err) =>
-        setStatus(
+        setWatchStatus(
           err.code === err.PERMISSION_DENIED ? "denied" : "unavailable",
         ),
       { enableHighAccuracy: true, maximumAge: 5_000, timeout: 20_000 },
@@ -73,8 +71,17 @@ export function useLocationReporter(enabled: boolean) {
       stopped = true;
       navigator.geolocation.clearWatch(watchId);
       clearInterval(heartbeat);
+      // Saat online lagi nanti, mulai dari "mencari lokasi" — bukan status sesi sebelumnya
+      setWatchStatus("locating");
     };
-  }, [enabled]);
+  }, [enabled, supported]);
+
+  // Status akhir DIHITUNG saat render → tidak ada setState di badan effect
+  const status: LocationStatus = !enabled
+    ? "off"
+    : !supported
+      ? "unavailable"
+      : watchStatus;
 
   return { status, position, lastSentAt };
 }

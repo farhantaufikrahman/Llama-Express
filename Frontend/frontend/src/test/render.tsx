@@ -11,6 +11,9 @@ import {
   type AuthContextValue,
 } from "../features/auth/AuthContext";
 
+/** Alamat awal: string biasa, atau objek dengan state (mis. { from: '/admin' } seperti yang dikirim guard) */
+type StartUrl = string | { pathname: string; state?: unknown };
+
 /**
  * Render dengan router + React Query + (opsional) auth.
  * QueryClient BARU per test → cache tidak bocor antar test.
@@ -21,12 +24,12 @@ export function renderApp({
   auth,
 }: {
   routes: RouteObject[];
-  url: string;
+  url: StartUrl;
   auth?: AuthContextValue;
 }) {
   const queryClient = new QueryClient({
     defaultOptions: {
-      queries: { retry: false, gcTime: Infinity }, // retry=false: error langsung tampil, test tidak menunggu backoff
+      queries: { retry: false, gcTime: Infinity },
       mutations: { retry: false },
     },
   });

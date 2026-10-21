@@ -28,7 +28,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Saat halaman dibuka/di-reload: access token hilang (hanya di memori) → pulihkan lewat refresh token
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    void (async () => {
       if (!tokenStore.getRefresh() || !(await refreshSession())) {
         if (!cancelled) setStatus("anonymous");
         return;
