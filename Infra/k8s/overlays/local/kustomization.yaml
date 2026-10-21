@@ -4,14 +4,16 @@ kind: Kustomization
 resources:
   - ../../base
 
-# Image hasil build lokal (docker compose build). Di Jenkins nanti: newName = repo DockerHub, newTag = commit SHA.
+# Image dari DockerHub (dibangun & di-push Jenkins dari main).
+# ":main" = versi main terbaru → "kubectl apply -k" tidak lagi menurunkan versi ke build lokal.
+# Jenkins (stage Deploy) tetap mengganti ke tag SHA yang immutable setiap rilis.
 images:
   - name: llama-express/backend
-    newName: llama-express-backend
-    newTag: local
+    newName: farhanrahman27/llama-express-backend
+    newTag: main
   - name: llama-express/frontend
-    newName: llama-express-frontend
-    newTag: local
+    newName: farhanrahman27/llama-express-frontend
+    newTag: main
 secretGenerator:
   - name: oracle-credentials
     namespace: llama
@@ -21,3 +23,7 @@ secretGenerator:
     namespace: llama
     envs:
       - secrets/backend.env
+  - name: cloudflared-token
+    namespace: llama
+    files:
+      - token=secrets/cloudflared.token # key "token" → file /etc/cloudflared/token
