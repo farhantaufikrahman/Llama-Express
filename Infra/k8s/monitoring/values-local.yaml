@@ -33,7 +33,12 @@ defaultRules:
     windows: false
 
 alertmanager:
-  enabled: false # dinyalakan di A2 bersama aturan alert
+  enabled: true
+  alertmanagerSpec:
+    retention: 24h # riwayat silence/notifikasi; lokal cukup 1 hari
+    resources:
+      requests: { cpu: 10m, memory: 32Mi }
+      limits: { memory: 96Mi }
 
 prometheusOperator:
   resources:
@@ -54,8 +59,6 @@ prometheus:
     resources:
       requests: { cpu: 100m, memory: 512Mi }
       limits: { memory: 1Gi }
-    # Default chart hanya membaca ServiceMonitor berlabel release=<nama-release>.
-    # false → baca SEMUA ServiceMonitor/PodMonitor/Rule/Probe di semua namespace (cocok untuk 1 tim/1 cluster).
     serviceMonitorSelectorNilUsesHelmValues: false
     podMonitorSelectorNilUsesHelmValues: false
     ruleSelectorNilUsesHelmValues: false
@@ -70,12 +73,14 @@ prometheus:
 
 grafana:
   admin:
-    existingSecret: grafana-admin # dibuat manual (langkah 2), tidak pernah masuk git
+    existingSecret: grafana-admin
     userKey: admin-user
     passwordKey: admin-password
+  goMemLimit:
+    factor: 0.5
   resources:
-    requests: { cpu: 50m, memory: 128Mi }
-    limits: { memory: 512Mi }
+    requests: { cpu: 50m, memory: 256Mi }
+    limits: { memory: 768Mi }
   sidecar:
     resources:
       requests: { cpu: 10m, memory: 64Mi }

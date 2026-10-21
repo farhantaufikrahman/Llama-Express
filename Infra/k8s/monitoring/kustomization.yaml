@@ -1,0 +1,17 @@
+# Objek K8s untuk monitoring Llama Express (chart-nya sendiri dipasang lewat Helm, bukan dari sini)
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - servicemonitor-backend.yaml
+  - rules-llama.yaml
+configMapGenerator:
+  # Sidecar Grafana memuat setiap ConfigMap berlabel grafana_dashboard="1" (di namespace mana pun)
+  - name: grafana-dashboard-llama-express
+    namespace: monitoring
+    files:
+      - dashboards/llama-express.json
+    options:
+      disableNameSuffixHash: true # nama tetap, supaya sidecar tidak memuat versi lama + baru
+      labels:
+        grafana_dashboard: "1"
