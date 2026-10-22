@@ -20,5 +20,5 @@ spec:
             matchLabels:
               app.kubernetes.io/name: prometheus
       ports:
-        - port: 8080
+        - port: 8081
           protocol: TCP
