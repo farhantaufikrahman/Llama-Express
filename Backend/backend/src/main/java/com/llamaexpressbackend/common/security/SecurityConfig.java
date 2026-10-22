@@ -27,8 +27,9 @@ public class SecurityConfig {
                         "/api/v1/track/**",
                         "/ws/**",
                         "/api/v1/payments/midtrans/notification",
-                        "/actuator/health", "/actuator/health/**", // probe Kubernetes tidak membawa JWT
-                        "/actuator/info", "/actuator/prometheus", // di-scrape Prometheus dari dalam cluster
+                        "/livez", "/readyz", // probe Kubernetes di port utama (tanpa JWT)
+                        "/actuator/health", "/actuator/health/**", // dev/compose & test (actuator di port utama)
+                        "/actuator/info", "/actuator/prometheus", // K8s: hanya di port management 8081 (tidak dirutekan Gateway)
                         "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html",
                         "/error"
         };
