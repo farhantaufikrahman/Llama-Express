@@ -9,3 +9,4 @@ coverage
 htmlpublisher
 sonar
 pipeline-utility-steps
+github-branch-source
