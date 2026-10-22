@@ -7,10 +7,10 @@ The project covers the whole lifecycle: an event-driven Spring Boot backend, a R
 > **Live demo:** https://llama.vzkyrielight.my.id
 > The frontend is hosted on Vercel. The API runs on my own machine (Kubernetes on Docker Desktop) and is published through a Cloudflare Tunnel, so **the API is only reachable while that machine is on.** If login fails, the backend is probably offline.
 
-| Role | Email | Password |
-|---|---|---|
+| Role     | Email                   | Password                   |
+| -------- | ----------------------- | -------------------------- |
 | Customer | `<demo-customer-email>` | `<demo-customer-password>` |
-| Courier | `<demo-courier-email>` | `<demo-courier-password>` |
+| Courier  | `<demo-courier-email>`  | `<demo-courier-password>`  |
 
 Payments use the **Midtrans sandbox**. No real money is involved; pay a Virtual Account order with the [Midtrans sandbox simulator](https://simulator.sandbox.midtrans.com).
 
@@ -18,16 +18,16 @@ Payments use the **Midtrans sandbox**. No real money is involved; pay a Virtual 
 
 ## Screenshots
 
-| Booking a delivery | Live tracking |
-|---|---|
+| Booking a delivery                               | Live tracking                                       |
+| ------------------------------------------------ | --------------------------------------------------- |
 | ![New order](docs/images/customer-new-order.png) | ![Live tracking](docs/images/customer-tracking.png) |
 
-| Courier job | Admin dashboard |
-|---|---|
-| ![Courier job](docs/images/courier-job.png) | ![Admin dashboard](docs/images/admin-dashboard.png) |
+| Courier job                                 | Admin dashboard                                     |
+| ------------------------------------------- | --------------------------------------------------- |
+| ![Courier job](docs/images/courier-job.jpg) | ![Admin dashboard](docs/images/admin-dashboard.png) |
 
-| Monitoring (Grafana) | CI/CD (Jenkins) |
-|---|---|
+| Monitoring (Grafana)                         | CI/CD (Jenkins)                              |
+| -------------------------------------------- | -------------------------------------------- |
 | ![Grafana](docs/images/grafana-overview.png) | ![Jenkins](docs/images/jenkins-pipeline.png) |
 
 ---
@@ -35,6 +35,7 @@ Payments use the **Midtrans sandbox**. No real money is involved; pay a Virtual 
 ## Features
 
 **Customer**
+
 - Register, manage saved addresses, and pick pickup/drop-off points on a map (OpenStreetMap + Nominatim reverse geocoding)
 - Instant price quote (service type, vehicle, weight), then place the order
 - Pay by cash or online through Midtrans Snap
@@ -42,12 +43,14 @@ Payments use the **Midtrans sandbox**. No real money is involved; pay a Virtual 
 - Share a public tracking link (token-based, no login), cancel an order, and rate the courier
 
 **Courier**
+
 - Register as a courier (requires admin verification), go online/offline
 - Receive delivery offers automatically; accept or reject them
 - Step through the job (start pickup → picked up → deliver), upload a proof-of-delivery photo, see earnings
 - Location is reported from the browser while a job is active
 
 **Admin**
+
 - Dashboard summary, order list with detail, cancellation and export
 - Manage tariffs, suspend/activate users, verify or reject couriers
 
@@ -96,34 +99,34 @@ flowchart LR
 
 ### Design decisions worth reading
 
-| Problem | Decision |
-|---|---|
-| Losing events when the DB commit and the Kafka publish disagree | **Transactional outbox** + scheduled publisher |
-| Running several backend pods with an in-memory STOMP broker | Each pod consumes status/location topics with its **own consumer group** (fan-out) and forwards to its local WebSocket clients. Those groups never commit offsets, so Kafka discards them when a pod goes away |
-| Scheduled jobs running twice when scaled out | **ShedLock** (JDBC) around the outbox publisher, dispatch sweeper and housekeeping |
-| Missed real-time events during a reconnect (e.g. while a pod is replaced) | The client re-subscribes first, then **refetches from REST**; WebSocket is a notification channel, REST is the source of truth |
-| Race conditions on courier assignment, tariffs, payments | Pessimistic row locks |
-| Rate limiting that works across pods | Counters in **Redis** |
-| Forged payment notifications | Midtrans `signature_key` (SHA-512) verification **plus** a status re-check against the Midtrans API |
-| Exposing a laptop-hosted API safely | Cloudflare Tunnel (outbound only, no open ports); only `/api` and `/ws` are routed; actuator lives on a separate port that the gateway never routes to |
-| Triggering CI from GitHub without exposing Jenkins | Only `/github-webhook/` is published, and payloads are verified with an **HMAC** shared secret |
-| XSS stealing tokens | Enforced **Content-Security-Policy** and security headers on Vercel |
+| Problem                                                                   | Decision                                                                                                                                                                                                       |
+| ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Losing events when the DB commit and the Kafka publish disagree           | **Transactional outbox** + scheduled publisher                                                                                                                                                                 |
+| Running several backend pods with an in-memory STOMP broker               | Each pod consumes status/location topics with its **own consumer group** (fan-out) and forwards to its local WebSocket clients. Those groups never commit offsets, so Kafka discards them when a pod goes away |
+| Scheduled jobs running twice when scaled out                              | **ShedLock** (JDBC) around the outbox publisher, dispatch sweeper and housekeeping                                                                                                                             |
+| Missed real-time events during a reconnect (e.g. while a pod is replaced) | The client re-subscribes first, then **refetches from REST**; WebSocket is a notification channel, REST is the source of truth                                                                                 |
+| Race conditions on courier assignment, tariffs, payments                  | Pessimistic row locks                                                                                                                                                                                          |
+| Rate limiting that works across pods                                      | Counters in **Redis**                                                                                                                                                                                          |
+| Forged payment notifications                                              | Midtrans `signature_key` (SHA-512) verification **plus** a status re-check against the Midtrans API                                                                                                            |
+| Exposing a laptop-hosted API safely                                       | Cloudflare Tunnel (outbound only, no open ports); only `/api` and `/ws` are routed; actuator lives on a separate port that the gateway never routes to                                                         |
+| Triggering CI from GitHub without exposing Jenkins                        | Only `/github-webhook/` is published, and payloads are verified with an **HMAC** shared secret                                                                                                                 |
+| XSS stealing tokens                                                       | Enforced **Content-Security-Policy** and security headers on Vercel                                                                                                                                            |
 
 ---
 
 ## Tech stack
 
-| Layer | Technologies |
-|---|---|
-| Backend | Java 25, Spring Boot 4.1 (Web MVC, Security / OAuth2 resource server with JWT, Data JPA, WebSocket/STOMP, Kafka, Data Redis, Actuator), Flyway, ShedLock, Micrometer |
-| Data | Oracle Database 23ai Free, Redis, Apache Kafka 4.1 (KRaft) |
-| Frontend | React 19, TypeScript, Vite, React Compiler, Tailwind CSS 4, React Router, TanStack Query, React Hook Form + Zod, Leaflet, STOMP.js |
-| Integrations | Midtrans Snap (sandbox), Cloudinary (proof photos), OpenStreetMap tiles + Nominatim |
-| Testing | JUnit 5 + Testcontainers (Oracle, Kafka, Redis); Jest + React Testing Library + MSW; Postman/Newman collection |
-| Platform | Docker, Kubernetes (Docker Desktop), Kustomize, Gateway API (NGINX Gateway Fabric), Helm |
-| CI/CD | Jenkins (multibranch, GitHub webhooks, PR status checks), SonarQube quality gate, Docker Hub, automated rollout with rollback and smoke test, Vercel |
-| Observability | kube-prometheus-stack (Prometheus, Alertmanager, Grafana), custom dashboard and alert rules |
-| Edge | Cloudflare (DNS, TLS, Tunnel) |
+| Layer         | Technologies                                                                                                                                                         |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Backend       | Java 25, Spring Boot 4.1 (Web MVC, Security / OAuth2 resource server with JWT, Data JPA, WebSocket/STOMP, Kafka, Data Redis, Actuator), Flyway, ShedLock, Micrometer |
+| Data          | Oracle Database 23ai Free, Redis, Apache Kafka 4.1 (KRaft)                                                                                                           |
+| Frontend      | React 19, TypeScript, Vite, React Compiler, Tailwind CSS 4, React Router, TanStack Query, React Hook Form + Zod, Leaflet, STOMP.js                                   |
+| Integrations  | Midtrans Snap (sandbox), Cloudinary (proof photos), OpenStreetMap tiles + Nominatim                                                                                  |
+| Testing       | JUnit 5 + Testcontainers (Oracle, Kafka, Redis); Jest + React Testing Library + MSW; Postman/Newman collection                                                       |
+| Platform      | Docker, Kubernetes (Docker Desktop), Kustomize, Gateway API (NGINX Gateway Fabric), Helm                                                                             |
+| CI/CD         | Jenkins (multibranch, GitHub webhooks, PR status checks), SonarQube quality gate, Docker Hub, automated rollout with rollback and smoke test, Vercel                 |
+| Observability | kube-prometheus-stack (Prometheus, Alertmanager, Grafana), custom dashboard and alert rules                                                                          |
+| Edge          | Cloudflare (DNS, TLS, Tunnel)                                                                                                                                        |
 
 ---
 
