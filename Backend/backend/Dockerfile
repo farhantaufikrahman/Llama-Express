@@ -35,7 +35,7 @@ USER app
 EXPOSE 8080
 
 # Sadar batas memori container + mati bersih kalau kehabisan memori (Kubernetes akan me-restart)
-ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError" \
+ENV JAVA_TOOL_OPTIONS="-XX:+UseG1GC -XX:MaxRAMPercentage=70 -XX:ActiveProcessorCount=2 -XX:+ExitOnOutOfMemoryError" \
     SPRING_PROFILES_ACTIVE=prod
 
 # Exec-form (array): java menjadi PID 1 → menerima SIGTERM → graceful shutdown berjalan

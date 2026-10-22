@@ -1,12 +1,10 @@
 {
   "uid": "llama-express",
   "title": "Llama Express — Overview",
-  "tags": [
-    "llama-express"
-  ],
+  "tags": ["llama-express"],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "editable": true,
   "refresh": "30s",
   "time": {
@@ -70,9 +68,7 @@
       ],
       "options": {
         "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
+          "calcs": ["lastNotNull"],
           "fields": "",
           "values": false
         },
@@ -129,9 +125,7 @@
       ],
       "options": {
         "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
+          "calcs": ["lastNotNull"],
           "fields": "",
           "values": false
         },
@@ -165,7 +159,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "",
+      "description": "— = tidak ada trafik API dalam 5 menit terakhir",
       "gridPos": {
         "h": 4,
         "w": 3,
@@ -179,15 +173,13 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "(sum(rate(http_server_requests_seconds_count{namespace=\"llama\", job=\"backend\", uri!~\"/actuator.*\", status=~\"5..\"}[5m])) or vector(0)) / clamp_min(sum(rate(http_server_requests_seconds_count{namespace=\"llama\", job=\"backend\", uri!~\"/actuator.*\"}[5m])), 0.001)",
+          "expr": "((sum(rate(http_server_requests_seconds_count{namespace=\"llama\", job=\"backend\", uri!~\"/actuator.*\", status=~\"5..\"}[5m])) or vector(0)) / sum(rate(http_server_requests_seconds_count{namespace=\"llama\", job=\"backend\", uri!~\"/actuator.*\"}[5m]))) and on() (sum(rate(http_server_requests_seconds_count{namespace=\"llama\", job=\"backend\", uri!~\"/actuator.*\"}[5m])) > 0)",
           "instant": true
         }
       ],
       "options": {
         "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
+          "calcs": ["lastNotNull"],
           "fields": "",
           "values": false
         },
@@ -198,7 +190,7 @@
       "fieldConfig": {
         "defaults": {
           "unit": "percentunit",
-          "noValue": "0",
+          "noValue": "—",
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -229,7 +221,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "",
+      "description": "— = tidak ada trafik API dalam 5 menit terakhir",
       "gridPos": {
         "h": 4,
         "w": 3,
@@ -243,15 +235,13 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{namespace=\"llama\", job=\"backend\", uri!~\"/actuator.*\"}[5m])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{namespace=\"llama\", job=\"backend\", uri!~\"/actuator.*\"}[5m]))) and on() (sum(rate(http_server_requests_seconds_count{namespace=\"llama\", job=\"backend\", uri!~\"/actuator.*\"}[5m])) > 0)",
           "instant": true
         }
       ],
       "options": {
         "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
+          "calcs": ["lastNotNull"],
           "fields": "",
           "values": false
         },
@@ -262,7 +252,7 @@
       "fieldConfig": {
         "defaults": {
           "unit": "s",
-          "noValue": "0",
+          "noValue": "—",
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -313,9 +303,7 @@
       ],
       "options": {
         "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
+          "calcs": ["lastNotNull"],
           "fields": "",
           "values": false
         },
@@ -368,9 +356,7 @@
       ],
       "options": {
         "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
+          "calcs": ["lastNotNull"],
           "fields": "",
           "values": false
         },
@@ -431,9 +417,7 @@
       ],
       "options": {
         "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
+          "calcs": ["lastNotNull"],
           "fields": "",
           "values": false
         },
@@ -494,9 +478,7 @@
       ],
       "options": {
         "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
+          "calcs": ["lastNotNull"],
           "fields": "",
           "values": false
         },

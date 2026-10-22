@@ -19,12 +19,19 @@ public class TrackingWebSocketBridge {
     private final SimpMessagingTemplate messaging;
     private final JsonMapper jsonMapper;
 
-    /**
-     * groupId acak per instance → SETIAP instance menerima semua event (broadcast).
-     * auto.offset.reset=latest → saat start, JANGAN memutar ulang seluruh riwayat
-     * topic ke browser.
+    /*
+     * Fan-out ke klien WebSocket di SETIAP pod:
+     * - groupId acak per instance → setiap pod menerima semua event (broadcast), bukan membagi partisi.
+     * - auto.offset.reset=latest → saat start, JANGAN memutar ulang riwayat topic ke browser
+     *   (data yang terlewat diambil frontend lewat REST setelah reconnect).
+     * - ackMode MANUAL tanpa Acknowledgment → offset TIDAK PERNAH di-commit. Group sekali pakai ini tidak
+     *   butuh posisi tersimpan (selalu mulai dari "latest"), dan group tanpa offset tersimpan dibersihkan
+     *   Kafka begitu pod mati → daftar consumer group tidak menumpuk setiap restart/deploy.
      */
-    @KafkaListener(topics = KafkaTopics.ORDER_STATUS_CHANGED, groupId = "llama-ws-status-#{T(java.util.UUID).randomUUID()}", properties = "auto.offset.reset=latest")
+    @KafkaListener(topics = KafkaTopics.ORDER_STATUS_CHANGED,
+            groupId = "llama-ws-status-#{T(java.util.UUID).randomUUID()}",
+            properties = "auto.offset.reset=latest",
+            ackMode = "MANUAL")
     public void onStatusChanged(ConsumerRecord<String, String> record) {
         OrderStatusChangedEvent e = jsonMapper.readValue(record.value(), OrderStatusChangedEvent.class);
         // kirim versi ringkas — tanpa actorId (id internal user)
@@ -33,7 +40,10 @@ public class TrackingWebSocketBridge {
         messaging.convertAndSend(statusDestination(e.orderCode()), body);
     }
 
-    @KafkaListener(topics = KafkaTopics.COURIER_LOCATION, groupId = "llama-ws-location-#{T(java.util.UUID).randomUUID()}", properties = "auto.offset.reset=latest")
+    @KafkaListener(topics = KafkaTopics.COURIER_LOCATION,
+            groupId = "llama-ws-location-#{T(java.util.UUID).randomUUID()}",
+            properties = "auto.offset.reset=latest",
+            ackMode = "MANUAL")
     public void onLocation(ConsumerRecord<String, String> record) {
         messaging.convertAndSend(locationDestination(record.key()), record.value()); // JSON diteruskan apa adanya
     }

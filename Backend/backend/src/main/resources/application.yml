@@ -132,6 +132,7 @@ management:
     health:
       probes:
         enabled: true # Boot 4 sudah default true; ditulis eksplisit supaya jelas
+        add-additional-paths: true
       group:
         readiness:
           include: readinessState,db,redis # siap terima traffic = DB & Redis bisa dijangkau
