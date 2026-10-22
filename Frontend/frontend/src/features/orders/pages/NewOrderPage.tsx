@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   keepPreviousData,
@@ -94,16 +94,14 @@ export default function NewOrderPage() {
     register,
     setValue,
     getValues,
-    watch,
+    control,
     formState: { errors, isSubmitting },
   } = form;
-  const [pickup, dropoff, serviceType, vehicleType, weightKg] = watch([
-    "pickup",
-    "dropoff",
-    "serviceType",
-    "vehicleType",
-    "weightKg",
-  ]);
+  // useWatch (bukan watch): berlangganan nilai lewat hook → aman untuk React Compiler (komponen tetap di-memoize)
+  const [pickup, dropoff, serviceType, vehicleType, weightKg] = useWatch({
+    control,
+    name: ["pickup", "dropoff", "serviceType", "vehicleType", "weightKg"],
+  });
 
   // ---------- Memilih titik (klik peta / hasil cari / alamat tersimpan) ----------
   const setPoint = async (kind: PointKind, pos: LatLng, address?: string) => {
