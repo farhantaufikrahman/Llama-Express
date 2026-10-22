@@ -38,7 +38,7 @@
           "value": "geolocation=(self), camera=(), microphone=(), payment=()"
         },
         {
-          "key": "Content-Security-Policy-Report-Only",
+          "key": "Content-Security-Policy",
           "value": "default-src 'self'; script-src 'self' https://*.midtrans.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://res.cloudinary.com https://*.midtrans.com; connect-src 'self' https://llama-api.vzkyrielight.my.id wss://llama-api.vzkyrielight.my.id https://nominatim.openstreetmap.org https://*.midtrans.com; frame-src https://*.midtrans.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
         }
       ]

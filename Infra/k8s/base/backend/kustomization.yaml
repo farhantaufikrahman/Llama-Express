@@ -15,7 +15,7 @@ configMapGenerator:
       - SPRING_DATA_REDIS_HOST=redis
       - SPRING_DATA_REDIS_PORT=6379
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-      - MIDTRANS_NOTIFICATION_URL=
+      - MIDTRANS_NOTIFICATION_URL=https://llama-api.vzkyrielight.my.id/api/v1/payments/midtrans/notification
       # app.cors.allowed-origins (dipakai CORS REST + origin WebSocket STOMP).
       # Env MENGGANTI seluruh list di application.yml (bukan menambah) → localhost:5173 ditulis ulang untuk dev.
       - APP_CORS_ALLOWEDORIGINS=https://llama.vzkyrielight.my.id,http://localhost:5173
