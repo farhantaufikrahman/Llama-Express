@@ -18,8 +18,11 @@ let client: Client | null = null;
 let status: RealtimeStatus = "idle";
 let idleTimer: ReturnType<typeof setTimeout> | undefined;
 let nextId = 1;
+/** true setelah koneksi pertama client ini → connect berikutnya = RECONNECT. */
+let hasConnectedBefore = false;
 const entries = new Map<number, Entry>();
 const statusListeners = new Set<() => void>();
+const reconnectListeners = new Set<() => void>();
 
 function setStatus(next: RealtimeStatus) {
   status = next;
@@ -56,6 +59,11 @@ function ensureClient(): Client {
     onConnect: () => {
       setStatus("connected");
       entries.forEach(attach); // langganan TIDAK otomatis pulih setelah reconnect → pasang ulang semuanya
+      // Event yang terbit SELAMA terputus tidak dikirim ulang (bridge backend: auto.offset.reset=latest),
+      // mis. saat pod backend diganti. Setelah langganan terpasang lagi → minta halaman mengambil ulang
+      // data dari REST (sumber kebenaran). Urutan: subscribe DULU, baru refetch → tidak ada celah.
+      if (hasConnectedBefore) reconnectListeners.forEach((l) => l());
+      hasConnectedBefore = true;
     },
     onWebSocketClose: () => {
       entries.forEach((e) => (e.stomp = undefined));
@@ -91,10 +99,22 @@ export function subscribe(
   };
 }
 
+/**
+ * Dipanggil setiap kali koneksi PULIH setelah terputus (bukan pada koneksi pertama).
+ * Mengembalikan fungsi untuk berhenti mendengarkan.
+ */
+export function onReconnect(listener: () => void): () => void {
+  reconnectListeners.add(listener);
+  return () => {
+    reconnectListeners.delete(listener);
+  };
+}
+
 export async function disconnect() {
   clearTimeout(idleTimer);
   const c = client;
   client = null;
+  hasConnectedBefore = false; // client berikutnya mulai dari nol → koneksi pertamanya bukan "reconnect"
   entries.forEach((e) => (e.stomp = undefined));
   setStatus("idle");
   await c?.deactivate();

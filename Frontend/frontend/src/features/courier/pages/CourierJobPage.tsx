@@ -7,12 +7,12 @@ import { TextField } from "../../../components/TextField";
 import { isApiError } from "../../../lib/api/errors";
 import { formatRupiah } from "../../../lib/format";
 import { compressImage } from "../../../lib/image";
-import { useTopic } from "../../../lib/useRealtime";
 import { useWakeLock } from "../../../lib/useWakeLock";
 import { PickMap, type MapMarker } from "../../map/PickMap";
 import { courierApi, courierKeys } from "../api";
 import { useCourierRuntime } from "../courierRuntimeContext";
 import type { CourierJob } from "../types";
+import { useOnReconnect, useTopic } from "../../../lib/useRealtime";
 
 const STEPS = ["Ke jemput", "Ambil paket", "Ke tujuan", "Selesai"];
 const stepOf = (status: CourierJob["status"]) =>
@@ -43,9 +43,11 @@ export default function CourierJobPage() {
   useWakeLock(!!job); // layar tetap menyala selama mengantar
 
   // Customer/admin membatalkan saat kurir di jalan → kurir harus tahu SEKETIKA
-  useTopic(job ? `/topic/orders/${job.code}/status` : null, () => {
+  const refreshJob = () => {
     void queryClient.invalidateQueries({ queryKey: courierKeys.activeJob });
-  });
+  };
+  useTopic(job ? `/topic/orders/${job.code}/status` : null, refreshJob);
+  useOnReconnect(job ? refreshJob : null);
 
   const onError = (e: unknown) =>
     setError(isApiError(e) ? e.message : "Terjadi kesalahan, coba lagi");
