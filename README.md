@@ -7,10 +7,10 @@ The project covers the whole lifecycle: an event-driven Spring Boot backend, a R
 > **Live demo:** https://llama.vzkyrielight.my.id
 > The frontend is hosted on Vercel. The API runs on my own machine (Kubernetes on Docker Desktop) and is published through a Cloudflare Tunnel, so **the API is only reachable while that machine is on.** If login fails, the backend is probably offline.
 
-| Role     | Email                   | Password                   |
-| -------- | ----------------------- | -------------------------- |
-| Customer | `<demo-customer-email>` | `<demo-customer-password>` |
-| Courier  | `<demo-courier-email>`  | `<demo-courier-password>`  |
+| Role     | Email                | Password    |
+| -------- | -------------------- | ----------- |
+| Customer | `Customer1@mail.com` | `Customer1` |
+| Courier  | `kurir1@mail.com`    | `Kurir123`  |
 
 Payments use the **Midtrans sandbox**. No real money is involved; pay a Virtual Account order with the [Midtrans sandbox simulator](https://simulator.sandbox.midtrans.com).
 
