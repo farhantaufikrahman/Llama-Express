@@ -4,6 +4,7 @@ kind: Kustomization
 resources:
   - service.yaml
   - deployment.yaml
+  - pdb.yaml
 
 # Konfigurasi NON-rahasia. Nama env var mengikuti relaxed binding Spring:
 # SPRING_DATASOURCE_URL → spring.datasource.url, dst. (env var mengalahkan application.yml)
