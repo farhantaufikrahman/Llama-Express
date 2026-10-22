@@ -1,5 +1,6 @@
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import {
+  onReconnect,
   realtimeStatusStore,
   subscribe,
   type RealtimeStatus,
@@ -38,4 +39,26 @@ export function useTopic<T = unknown>(
     if (!destination) return;
     return subscribe(destination, (body) => handlerRef.current(body as T));
   }, [destination]);
+}
+
+/**
+ * Jalankan callback setiap kali koneksi realtime PULIH setelah terputus
+ * (mis. pod backend diganti saat deploy) → halaman mengambil ulang data yang mungkin terlewat.
+ * - callback null/undefined → tidak mendengarkan
+ * - callback disimpan di ref (pola yang sama dengan useTopic)
+ */
+export function useOnReconnect(
+  callback: (() => void) | null | undefined,
+): void {
+  const callbackRef = useRef(callback);
+
+  useEffect(() => {
+    callbackRef.current = callback;
+  });
+
+  const enabled = !!callback;
+  useEffect(() => {
+    if (!enabled) return;
+    return onReconnect(() => callbackRef.current?.());
+  }, [enabled]);
 }
