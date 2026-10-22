@@ -17,3 +17,5 @@
 *.iml
 .DS_Store
 Thumbs.db
+# log lokal (mis. output test Maven)
+*.log
