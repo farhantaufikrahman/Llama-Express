@@ -1,0 +1,13 @@
+# Gangguan "sukarela" (kubectl drain, upgrade node, eviction) tidak boleh mematikan semua backend sekaligus.
+# (Rolling update Deployment diatur oleh strategy, bukan PDB.)
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: backend
+  labels:
+    app.kubernetes.io/name: backend
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: backend
