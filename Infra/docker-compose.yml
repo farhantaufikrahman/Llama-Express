@@ -70,6 +70,7 @@ services:
       - sonarqube_logs:/opt/sonarqube/logs
       - sonarqube_extensions:/opt/sonarqube/extensions
     stop_grace_period: 1m
+    restart: unless-stopped
 
   # ───────────────────────────── DEV (infrastruktur lokal) ─────────────────────────────
   oracle:
