@@ -52,6 +52,8 @@ spec:
           ports:
             - name: http
               containerPort: 8080
+            - name: management # actuator: /actuator/prometheus (di-scrape Prometheus)
+              containerPort: 8081
           envFrom:
             - configMapRef:
                 name: backend-config
@@ -76,24 +78,26 @@ spec:
             limits:
               memory: 1Gi
           # Start pertama menjalankan Flyway (semua migrasi) di Oracle kosong → beri hingga 3 menit
+          # Probe di port UTAMA (/livez, /readyz = add-additional-paths) → yang diperiksa server yang melayani trafik.
+          # Start pertama menjalankan Flyway (semua migrasi) di Oracle kosong → beri hingga 3 menit
           startupProbe:
             httpGet:
-              path: /actuator/health/liveness
+              path: /livez
               port: http
             periodSeconds: 5
             failureThreshold: 36
-          # Readiness = db + redis (grup yang kita definisikan di langkah 12)
+          # Readiness = db + redis (grup readiness di application.yml)
           readinessProbe:
             httpGet:
-              path: /actuator/health/readiness
+              path: /readyz
               port: http
             periodSeconds: 10
             timeoutSeconds: 3
             failureThreshold: 3
-          # Liveness TANPA cek DB (langkah 12): DB down ≠ backend perlu di-restart
+          # Liveness TANPA cek DB: DB down ≠ backend perlu di-restart
           livenessProbe:
             httpGet:
-              path: /actuator/health/liveness
+              path: /livez
               port: http
             periodSeconds: 20
             timeoutSeconds: 3
