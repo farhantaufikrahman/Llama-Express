@@ -5,15 +5,20 @@ metadata:
   labels:
     app.kubernetes.io/name: backend
 spec:
-  # 1 replika dulu: STOMP simple broker menyimpan langganan WebSocket di MEMORI pod.
-  # Dengan 2 pod, klien yang terhubung ke pod A tidak menerima pesan yang diterbitkan pod B.
-  # Scale-out butuh perubahan desain (dibahas di K5).
-  replicas: 1
+  # 2 replika: realtime sudah aman multi-pod —
+  # - TrackingWebSocketBridge memakai consumer group Kafka UNIK per pod → setiap pod menerima semua event
+  #   status/lokasi lalu meneruskannya ke klien WebSocket miliknya (fan-out)
+  # - job terjadwal (outbox, dispatch sweeper, housekeeping) dikunci ShedLock → hanya satu pod yang menjalankan
+  # - rate limiter di Redis → batas dihitung bersama
+  # - frontend me-resync data setelah reconnect (event selama terputus tidak dikirim ulang)
+  replicas: 2
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxSurge: 1 # buat pod baru dulu...
-      maxUnavailable: 0 # ...pod lama baru dimatikan setelah pod baru READY → zero downtime
+      # RAM node terbatas → ganti pod SATU PER SATU tanpa pod ekstra (tidak pernah ada pod ke-3).
+      # Selama rollout 1 pod tetap melayani; koneksi WS di pod yang diganti reconnect ke pod lain.
+      maxSurge: 0
+      maxUnavailable: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: backend
@@ -29,7 +34,17 @@ spec:
         runAsUser: 10001 # UID numerik eksplisit (kubelet tidak bisa memverifikasi user bernama "app")
         runAsGroup: 10001
         seccompProfile:
-          type: RuntimeDefault
+          type:
+            RuntimeDefault
+            # Production (banyak node): sebar pod backend ke node berbeda → satu node mati tidak mematikan semua backend.
+      # ScheduleAnyway = preferensi, bukan syarat → tetap jalan di Docker Desktop yang hanya punya 1 node.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: backend
       containers:
         - name: backend
           image: llama-express/backend # nama generik; tag ditentukan overlay (images:)
